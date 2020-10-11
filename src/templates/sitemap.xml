@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{{#pages}}
+    <url>
+        <loc>{{permalink}}</loc>
+        <priority>{{priority}}</priority>
+    </url>
+    {{#pictures}}
+    <url>
+        <loc>{{permalink}}</loc>
+        <priority>0.1</priority>
+    </url>
+    {{/pictures}}
+{{/pages}}
+{{#taxons}}
+    <url>
+        <loc>/{{slug}}/</loc>
+        <priority>0.2</priority>
+    </url>
+    {{#keys}}
+    <url>
+        <loc>/{{slug}}/{{key}}/</loc>
+        <priority>0.3</priority>
+    </url>
+    {{/keys}}
+{{/taxons}}
+</urlset>

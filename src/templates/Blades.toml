@@ -1,0 +1,8 @@
+title = "{{title}}"
+description = ""
+keywords = ""
+image = ""
+theme = ""
+
+[author]
+name = "{{author}}"

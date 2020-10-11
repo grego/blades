@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+{{#site}}
+    <title>{{title}}</title>
+    <link rel="related" href="{{url}}" />
+    <id>{{url}}</id>
+    {{#author}}
+    <author>
+        <name>{{name}}</name>
+        {{#email}}<email>{{email}}</email>{{/email}}
+        {{#uri}}<uri>{{uri}}</uri>{{/uri}}
+    </author>
+    {{/author}}
+    <subtitle>{{description}}</subtitle>
+    <generator>razor</generator>
+    {{#date}}<updated>{{y}}-{{m}}-{{d}}T{{H}}:{{M}}:{{S}}Z</updated>{{/date}}
+{{/site}}
+{{#pages}}
+    <entry>
+        <title>{{title}}</title>
+        <link rel="alternate" href="{{permalink}}" />
+        <id>{{#site}}{{url}}{{/site}}{{path}}{{#slug}}/{{slug}}{{/slug}}</id>
+        <summary>{{summary}}</summary>
+        <content>{{content}}</content>
+        {{#date}}<updated>{{y}}-{{m}}-{{d}}T{{H}}:{{M}}:{{S}}Z</updated>{{/date}}
+    </entry>
+    {{#pictures}}
+    <entry>
+        <title>{{alt}}</title>
+        <link rel="alternate" href="{{permalink}}" />
+        <id>{{#site}}{{url}}{{/site}}{{path}}{{#slug}}/{{slug}}{{/slug}}/{{pid}}</id>
+        <summary>{{caption}}</summary>
+        <content>{{summary}}</content>
+        {{#taken}}<updated>{{y}}-{{m}}-{{d}}T{{H}}:{{M}}:{{S}}Z</updated>{{/taken}}
+        {{^taken}}{{#date}}<updated>{{y}}-{{m}}-{{d}}T{{H}}:{{M}}:{{S}}Z</updated>{{/date}}{{/taken}}
+    </entry>
+    {{/pictures}}
+{{/pages}}
+</feed>

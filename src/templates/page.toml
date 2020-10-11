@@ -1,0 +1,7 @@
+title = "{{title}}"
+slug = "{{slug}}"
+date = "{{date}}"
+
+content = """
+Put your *possibly markdowned* content here.
+"""

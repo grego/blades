@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+    <channel>
+    {{#site}}
+        <title>{{title}}</title>
+        <link>{{url}}</link>
+        <description>{{description}}</description>
+        <ttl>1440</ttl>
+        <generator>razor</generator>
+        {{#date}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/date}}
+        {{#author}}{{#email}}
+        <managingEditor>{{email}}</managingEditor>
+        <webMaster>{{email}}<webMaster>
+        {{/email}}{{/author}}
+    {{/site}}
+    {{#pages}}
+        <item>
+            <title>{{title}}</title>
+            <link>{{permalink}}</link>
+            <description>{{summary}}</description>
+            {{#date}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/date}}
+        </item>
+        {{#pictures}}
+        <item>
+            <title>{{alt}}</title>
+            <link>{{permalink}}</link>
+            <description>{{caption}}</description>
+            {{#taken}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/taken}}
+            {{^taken}}{{#date}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/date}}{{/taken}}
+        </item>
+        {{/pictures}}
+    {{/pages}}
+    </channel>
+</rss>
