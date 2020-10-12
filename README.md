@@ -9,7 +9,7 @@ blazing fast
 [![Crates.io status](https://badgen.net/crates/v/blades)](https://crates.io/crates/blades)
 [![Docs](https://docs.rs/blades/badge.svg)](https://docs.rs/blades)
 
-[User manual](https://blades.github.io)
+[User manual](http://www.getblades.org)
 
 Blades is made to do one job and do it well - generate HTML files from the provided
 content using the provided templates.  
