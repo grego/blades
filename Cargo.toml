@@ -3,6 +3,12 @@ name = "blades"
 version = "0.1.0"
 authors = ["Maroš Grego <maros@grego.site>"]
 edition = "2018"
+description = "Blazing fast dead simple static site generator"
+repository = "https://github.com/grego/blades"
+keywords = ["website", "site", "generator"]
+categories = ["command-line-utilities", "web-programming"]
+license = "GPL-3.0-or-later"
+readme = "README.md"
 
 [dependencies]
 toml = "0.5.6"
