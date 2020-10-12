@@ -1,13 +1,15 @@
 <img src="https://raw.githubusercontent.com/grego/blades/master/logo.svg?sanitize=true" alt="Blades logo" width="250" align="right">
 
+# Blades
+
+[![Crates.io status](https://badgen.net/crates/v/blades)](https://crates.io/crates/blades)
+[![Docs](https://docs.rs/blades/badge.svg)](https://docs.rs/blades)
+
 ```
 blazing fast
  dead simple
   static site generator
 ```
-
-[![Crates.io status](https://badgen.net/crates/v/blades)](https://crates.io/crates/blades)
-[![Docs](https://docs.rs/blades/badge.svg)](https://docs.rs/blades)
 
 [User manual](http://www.getblades.org)
 
