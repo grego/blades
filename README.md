@@ -63,7 +63,7 @@ Then, you can run the executable `blades` with the following subcommands:
 When you specify a theme in the [config](config.html), templates and assets from the theme are used.
 Every site that doesn't use a theme can be used as a theme for another site.
 Therefore, the easiest way to use a theme is to just clone the corresponding theme's repository
-into the `themes` directory. A list of available themes can be found [here](/themes).
+into the `themes` directory. A list of available themes can be found [here](https://www.getblades.org/themes/).
 
 To overwrite the theme, simply use the files in the `templates`, resp. `assets` subdirectories of the
 page root directory.
