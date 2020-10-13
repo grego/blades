@@ -22,7 +22,7 @@ mod types;
 pub use config::Config;
 pub use error::{Error, Result};
 pub use page::Page;
-pub use sources::Sources;
+pub use sources::{Source, Sources};
 pub use tasks::{cleanup, colocate_assets, render_meta};
 pub use taxonomies::Taxonomy;
 pub use types::{MutSet, Templates};

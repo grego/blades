@@ -120,7 +120,7 @@ pub fn colocate_assets(config: &Config) -> Result {
 }
 
 /// Delete all the pages that were present in the previous render, but not the current one.
-/// Then, write all the paths that were rendered to the file `.razor`.
+/// Then, write all the paths that were rendered to the file `filelist`
 pub fn cleanup(rendered: MutSet, filelist: &str) -> Result {
     let rendered = rendered.into_inner();
     if let Ok(f) = File::open(filelist) {

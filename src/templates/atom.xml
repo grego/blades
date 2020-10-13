@@ -12,7 +12,7 @@
     </author>
     {{/author}}
     <subtitle>{{description}}</subtitle>
-    <generator>razor</generator>
+    <generator>blades</generator>
     {{#date}}<updated>{{y}}-{{m}}-{{d}}T{{H}}:{{M}}:{{S}}Z</updated>{{/date}}
 {{/site}}
 {{#pages}}

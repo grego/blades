@@ -6,7 +6,7 @@
         <link>{{url}}</link>
         <description>{{description}}</description>
         <ttl>1440</ttl>
-        <generator>razor</generator>
+        <generator>blades</generator>
         {{#date}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/date}}
         {{#author}}{{#email}}
         <managingEditor>{{email}}</managingEditor>

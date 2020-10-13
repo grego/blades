@@ -53,7 +53,7 @@ If you would like to have it included in your favourite package repository, [sub
 
 Then, you can run the executable `blades` with the following subcommands:
 * `init`: Initialise the site in the current directory, creating the basic files and folders
-* `build`: Build the site according to config, content, templates and themes in the currend directory
+* `build`: Build the site according to config, content, templates and themes in the current directory
 * `colocate`: Move the assets from the "assets" directory and from the theme, if one is used, into the output directory
 * `all`: Build the site and colocate the assets
 * `lazy`: Build the site and (colocate assets only if the theme was switched) [default]

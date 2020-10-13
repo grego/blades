@@ -51,7 +51,7 @@ enum Cmd {
     Init,
     /// Start creating a new page
     New,
-    /// Build the site according to config, content, templates and themes in the currend directory
+    /// Build the site according to config, content, templates and themes in the current directory
     Build,
     /// Move the assets from the "assets" directory and from the theme, if one is used,
     /// into the output directory

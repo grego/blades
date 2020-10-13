@@ -1,6 +1,6 @@
 [package]
 name = "blades"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Maroš Grego <maros@grego.site>"]
 edition = "2018"
 description = "Blazing fast dead simple static site generator"
@@ -11,16 +11,16 @@ license = "GPL-3.0-or-later"
 readme = "README.md"
 
 [dependencies]
-toml = "0.5.6"
-ramhorns = "0.10"
+toml = "0.5.7"
+ramhorns = "0.10.1"
 beef = { version = "0.4.4", features = ["impl_serde"]}
-serde = { version = "1.0.114", features = ["derive"] }
+serde = { version = "1.0.116", features = ["derive"] }
 custom_error = "1.8.0"
-chrono = {version = "0.4.12", features = ["serde"] }
-ahash = "0.4"
+chrono = {version = "0.4.19", features = ["serde"] }
+ahash = "0.5.1"
 parking_lot = "0.11"
-rayon = "1.3.1"
-structopt = "0.3.18"
+rayon = "1.4.1"
+structopt = "0.3.20"
 
 [profile.release]
 lto = true
