@@ -9,6 +9,7 @@ keywords = ["website", "site", "generator"]
 categories = ["command-line-utilities", "web-programming"]
 license = "GPL-3.0-or-later"
 readme = "README.md"
+homepage = "https://www.getblades.org"
 
 [dependencies]
 toml = "0.5.7"

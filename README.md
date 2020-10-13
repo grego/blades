@@ -44,6 +44,8 @@ is welcome! `:)`
 They shave the [mustache](https://mustache.github.io/mustache.5.html) off.
 
 ## Installing
+Currently, Blades is available on [AUR](https://aur.archlinux.org/packages/blades-bin/). You can
+install it with some AUR helper, like `yay -S blades-bin`.
 
 If you have the Rust toolchain installed, you can install Blades from [Crates.io](https://crates.io/crates/blades)
 ``` bash
