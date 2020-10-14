@@ -62,7 +62,7 @@ Then, you can run the executable `blades` with the following subcommands:
 * `new`: Create a new page
 
 ## Themes
-When you specify a theme in the [config](config.html), templates and assets from the theme are used.
+When you specify a theme in the [config](https://www.getblades.org/config.html), templates and assets from the theme are used.
 Every site that doesn't use a theme can be used as a theme for another site.
 Therefore, the easiest way to use a theme is to just clone the corresponding theme's repository
 into the `themes` directory. A list of available themes can be found [here](https://www.getblades.org/themes/).
@@ -72,7 +72,7 @@ page root directory.
 
 ## Assets
 All the files from the `assets` directory (and from the theme) are moved into the directory
-specified in the [config](config.html), which is emptied before. This is a subdirectory of the
+specified in the [config](https://www.getblades.org/config.html), which is emptied before. This is a subdirectory of the
 output directory (defaults to `assets`).
 
 Blades takes of the pages it rendered before and if some of them is deleted, the corresponding
@@ -82,7 +82,7 @@ differs from all the page names and it's not in the assets subdirectory), Blades
 
 ## Meta
 Blades renders [sitemap](https://www.sitemaps.org) (into `sitemap.xml`), [Atom](https://en.wikipedia.org/wiki/Atom_(Web_standard)) (into `atom.xml`)
-and [RSS](https://en.wikipedia.org/wiki/RSS) (into `rss.xml`) feeds, unless explicitly disabled in the [config](config.html).
+and [RSS](https://en.wikipedia.org/wiki/RSS) (into `rss.xml`) feeds, unless explicitly disabled in the [config](https://www.getblades.org/config.html).
 
 ## Contribution
 If you found a bug or would like to see some feature in Blades, you are the most welcome to submit an issue
