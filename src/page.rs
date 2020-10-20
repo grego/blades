@@ -56,7 +56,6 @@ pub struct Page<'p> {
     #[serde(borrow, default)]
     image: Cow<'p, str>,
     #[serde(borrow, default)]
-    #[md]
     summary: Cow<'p, str>,
     #[serde(borrow, default)]
     #[md]
