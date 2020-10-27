@@ -56,14 +56,11 @@ struct Segment<'a>(
 #[derive(Clone, serde::Deserialize)]
 #[serde(untagged)]
 pub(crate) enum Any<'a> {
+    String(#[serde(borrow)] Cow<'a, str>),
     Number(f64),
-    #[serde(borrow)]
-    String(Cow<'a, str>),
     DateTime(DateTime),
-    #[serde(borrow)]
     List(Vec<Any<'a>>),
-    #[serde(borrow)]
-    Map(HashMap<Cow<'a, str>, Any<'a>>),
+    Map(HashMap<&'a str, Any<'a>>),
 }
 
 impl Templates {
@@ -178,15 +175,17 @@ impl<'a> Content for Any<'a> {
         match self {
             Any::List(vec) => !vec.is_empty(),
             Any::Map(map) => !map.is_empty(),
-            _ => false,
+            Any::String(s) => !s.is_empty(),
+            Any::Number(n) => n.abs() > f64::EPSILON,
+            _ => true,
         }
     }
 
     #[inline]
     fn render_escaped<E: Encoder>(&self, encoder: &mut E) -> Result<(), E::Error> {
         match self {
+            Any::String(s) => s.render_cmark(encoder),
             Any::Number(n) => n.render_escaped(encoder),
-            Any::String(s) => s.render_escaped(encoder),
             Any::DateTime(dt) => dt.render_escaped(encoder),
             Any::List(vec) => vec.render_escaped(encoder),
             Any::Map(map) => map.render_escaped(encoder),
@@ -196,8 +195,8 @@ impl<'a> Content for Any<'a> {
     #[inline]
     fn render_unescaped<E: Encoder>(&self, encoder: &mut E) -> Result<(), E::Error> {
         match self {
-            Any::Number(n) => n.render_unescaped(encoder),
             Any::String(s) => s.render_unescaped(encoder),
+            Any::Number(n) => n.render_unescaped(encoder),
             Any::DateTime(dt) => dt.render_unescaped(encoder),
             Any::List(vec) => vec.render_unescaped(encoder),
             Any::Map(map) => map.render_unescaped(encoder),
@@ -213,7 +212,8 @@ impl<'a> Content for Any<'a> {
         match self {
             Any::List(vec) => vec.render_section(section, encoder),
             Any::Map(map) => map.render_section(section, encoder),
-            _ => section.render(encoder),
+            Any::DateTime(dt) => dt.render_section(section, encoder),
+            _ => if self.is_truthy() { section.render(encoder) } else { Ok(()) },
         }
     }
 
