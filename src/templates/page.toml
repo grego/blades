@@ -1,6 +1,6 @@
 title = "{{title}}"
 slug = "{{slug}}"
-date = "{{date}}"
+date = {{date}}
 
 content = """
 Put your *possibly markdowned* content here.
