@@ -34,6 +34,8 @@ pub struct Page<'p> {
     #[serde(borrow, default)]
     path: Ancestors<'p>,
     #[serde(default)]
+    alternative_paths: Cow<'p, [&'p str]>,
+    #[serde(default)]
     #[ramhorns(skip)]
     pub(crate) weight: i64,
     #[serde(borrow, default)]
@@ -281,7 +283,7 @@ impl<'p> Page<'p> {
     /// they will be rendered to.
     #[inline]
     pub fn prepare(mut pages: Vec<Self>, config: &Config) -> Result<Vec<Self>> {
-        let output = Path::new(config.output_dir.as_ref());
+        let output_dir = Path::new(config.output_dir.as_ref());
         for i in 0..pages.len() {
             let page = &pages[i];
 
@@ -313,8 +315,13 @@ impl<'p> Page<'p> {
 
             let page = &pages[i];
             if page.is_section || !page.pictures.is_empty() {
-                let mut path = output.join(page.path.as_ref());
+                let mut path = output_dir.join(page.path.as_ref());
                 path.push(page.slug.as_ref());
+                create_dir_all(path)?;
+            }
+
+            for path in page.alternative_paths.iter() {
+                let path = output_dir.join(path);
                 create_dir_all(path)?;
             }
 
@@ -377,7 +384,8 @@ impl<'p> Page<'p> {
         classification: &Classification<'p, '_>,
         rendered: &MutSet,
     ) -> Result {
-        let mut output = Path::new(config.output_dir.as_ref()).join(self.path.as_ref());
+        let output_dir = Path::new(config.output_dir.as_ref());
+        let mut output = output_dir.join(self.path.as_ref());
         output.push(self.slug.as_ref());
         if self.is_section {
             output.push("index");
@@ -399,7 +407,7 @@ impl<'p> Page<'p> {
         let by = self.paginate_by.map(NonZeroUsize::get).unwrap_or(0);
         if by > 0 && self.pages.len() > by {
             let (start, end) = (self.pages.start, self.pages.end);
-            page.render_paginated(start, end, by, &mut output, &template, rendered)
+            page.render_paginated(start, end, by, &mut output, &template, rendered)?
         } else if !self.pictures.is_empty() {
             render(template, &output, &page, rendered)?;
 
@@ -428,10 +436,16 @@ impl<'p> Page<'p> {
                 render(template, &output, &page, rendered)?;
                 output.pop();
             }
-            Ok(())
         } else {
-            render(template, output, &page, rendered)
+            render(template, output, &page, rendered)?;
         }
+
+        for path in self.alternative_paths.iter() {
+            let mut output = output_dir.join(path);
+            output.push("index.html");
+            render(template, output, &page, rendered)?;
+        }
+        Ok(())
     }
 }
 
