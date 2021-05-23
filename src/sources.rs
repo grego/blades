@@ -41,7 +41,12 @@ pub struct Sources {
 
 impl Source {
     #[inline]
-    fn new(path: PathBuf, src: Range<usize>, parent: usize, date: SystemTime) -> Result<Self> {
+    fn new(
+        path: PathBuf,
+        src: Range<usize>,
+        parent: usize,
+        date: Option<SystemTime>,
+    ) -> Result<Self> {
         Ok(Self {
             source: src,
             path: path_to_string(path)?.into(),
@@ -49,7 +54,7 @@ impl Source {
             subsections: 0..0,
             is_section: false,
             parent,
-            date: Some(date),
+            date,
             to_load: None,
         })
     }
@@ -91,12 +96,9 @@ impl Sources {
                     })
                     .unwrap_or(false)
             })
-            .filter_map(|entry| {
-                entry
-                    .metadata()
-                    .and_then(|m| m.created())
-                    .map(|date| (entry.path(), date))
-                    .ok()
+            .map(|entry| {
+                let date = entry.metadata().and_then(|m| m.created()).ok();
+                (entry.path(), date)
             })
             .filter(|(path, _)| {
                 path.file_stem()
