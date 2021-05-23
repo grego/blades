@@ -22,6 +22,7 @@ use sources::Sources;
 use taxonomies::Taxonomy;
 use types::{MutSet, Templates};
 
+use chrono::offset::Local;
 use ramhorns::{Content, Template};
 use rayon::prelude::*;
 use std::env::var;
@@ -110,7 +111,7 @@ fn new_page(config: &Config) -> Result<(), Error> {
         "Path (relative to the content directory):",
     )?);
     create_dir_all(&path)?;
-    let date = next_line(&mut lines, "Date (format YYYY-MM-DD):")?;
+    let date = Local::now().format("%Y-%m-%d").to_string();
     path.push(format!("{}-{}.toml", &date, &slug));
 
     if path.exists() {

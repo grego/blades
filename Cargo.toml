@@ -12,13 +12,13 @@ readme = "README.md"
 homepage = "https://www.getblades.org"
 
 [dependencies]
-toml = "0.5.7"
+toml = "0.5.8"
 ramhorns = "0.10.2"
 beef = { version = "0.5", features = ["impl_serde"]}
 serde = { version = "1.0.126", features = ["derive"] }
 derive_more = { version = "0.99.4", features = ["display", "error"], default_features = false }
-chrono = { version = "0.4.19", features = ["std", "serde"], default_features = false }
-ahash = { version = "0.5.10", default_features = false }
+chrono = { version = "0.4.19", features = ["clock", "serde"], default_features = false }
+ahash = "0.7.3"
 parking_lot = "0.11.1"
 rayon = "1.5.1"
 structopt = "0.3.21"
