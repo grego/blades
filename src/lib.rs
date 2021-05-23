@@ -1,4 +1,4 @@
-// Blades  Copyright (C) 2020  Maroš Grego
+// Blades  Copyright (C) 2021 Maroš Grego
 //
 // This file is part of Blades. This program comes with ABSOLUTELY NO WARRANTY;
 // This is free software, and you are welcome to redistribute it under the

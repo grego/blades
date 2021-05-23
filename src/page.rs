@@ -1,4 +1,4 @@
-// Blades  Copyright (C) 2020  Maroš Grego
+// Blades  Copyright (C) 2021 Maroš Grego
 //
 // This file is part of Blades. This program comes with ABSOLUTELY NO WARRANTY;
 // This is free software, and you are welcome to redistribute it under the
@@ -8,7 +8,7 @@
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
 
 use crate::config::Config;
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::sources::{Source, Sources};
 use crate::tasks::render;
 use crate::taxonomies::{Classification, Taxonomies};
@@ -244,11 +244,8 @@ impl<'p> Page<'p> {
     /// Construct a new page from the source.
     #[inline]
     pub fn new(source: &'p Source, data: &'p Sources, config: &Config) -> Result<Self> {
-        let mut page: Page =
-            toml::from_slice(&data.data[source.source.clone()]).map_err(|e| Error::Toml {
-                source: e,
-                name: source.path.clone(),
-            })?;
+        let mut page: Page = toml::from_slice(&data.data[source.source.clone()])
+            .map_err(|e| (e, source.path.clone()))?;
 
         let is_section = source.is_section;
         page.is_section = is_section;

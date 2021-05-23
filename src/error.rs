@@ -1,4 +1,4 @@
-// Blades  Copyright (C) 2020  Maroš Grego
+// Blades  Copyright (C) 2021 Maroš Grego
 //
 // This file is part of Blades. This program comes with ABSOLUTELY NO WARRANTY;
 // This is free software, and you are welcome to redistribute it under the
@@ -6,40 +6,54 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
+use derive_more::{Display, Error};
 
-use custom_error::custom_error;
-
-custom_error! {
 /// All possible ways the site generation can fail.
-pub Error
+#[derive(Debug, Display, Error)]
+pub enum Error {
     /// Input/output error
-    Io{
-        /// Source of the error.
-        source: std::io::Error
-    } 							= "Input/output error: {source}",
+    #[display(fmt = "Input/output error: {}", "_0")]
+    Io(std::io::Error),
     /// TOML deserialization error
-    Toml{
+    #[display(fmt = "Error parsing {}: {}", name, source)]
+    Toml {
         /// Source of the error.
         source: toml::de::Error,
         /// Name of the file where the error occured
-        name: Box<str>
-    } 							= "Error parsing {name}: {source}",
+        #[error(ignore)]
+        name: Box<str>,
+    },
     /// Ramhorns template error
-    Ramhorns{
-        /// Source of the error.
-        source: ramhorns::Error
-    }							= "Ramhorns template error: {source}",
+    #[display(fmt = "Ramhorns template error: {}", "_0")]
+    Ramhorns(ramhorns::Error),
     /// No template with the given name was found
-    MissingTemplate{
-        /// Name of the template that was not found.
-        name: Box<str>
-    }							= "Template file {name} not found.",
+    #[display(fmt = "Template {} not found", "_0")]
+    MissingTemplate(#[error(ignore)] Box<str>),
     /// File name doesn't is not a valid UTF-8 string
-    InvalidUtf8{
-        /// Name of the file with invalid name.
-        name: Box<str>
-    }							= "File {name} is not a valid UTF-8 text",
+    #[display(fmt = "File {} is not a valid UTF-8 text", "_0")]
+    InvalidUtf8(#[error(ignore)] Box<str>),
 }
 
 /// A convenience wrapper around std Result
 pub type Result<T = (), E = Error> = std::result::Result<T, E>;
+
+impl From<std::io::Error> for Error {
+    fn from(other: std::io::Error) -> Self {
+        Self::Io(other)
+    }
+}
+
+impl From<ramhorns::Error> for Error {
+    fn from(other: ramhorns::Error) -> Self {
+        Self::Ramhorns(other)
+    }
+}
+
+impl<T: Into<Box<str>>> From<(toml::de::Error, T)> for Error {
+    fn from((source, name): (toml::de::Error, T)) -> Self {
+        Self::Toml {
+            source,
+            name: name.into(),
+        }
+    }
+}

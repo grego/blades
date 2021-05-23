@@ -1,4 +1,4 @@
-// Blades  Copyright (C) 2020  Maroš Grego
+// Blades  Copyright (C) 2021 Maroš Grego
 //
 // This file is part of Blades. This program comes with ABSOLUTELY NO WARRANTY;
 // This is free software, and you are welcome to redistribute it under the
@@ -174,7 +174,5 @@ impl Sources {
 fn path_to_string(path: PathBuf) -> Result<String> {
     path.into_os_string()
         .into_string()
-        .map_err(|s| Error::InvalidUtf8 {
-            name: s.to_string_lossy().as_ref().into(),
-        })
+        .map_err(|s| Error::InvalidUtf8(s.to_string_lossy().as_ref().into()))
 }

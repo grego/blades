@@ -1,4 +1,4 @@
-// Blades  Copyright (C) 2020  Maroš Grego
+// Blades  Copyright (C) 2021 Maroš Grego
 //
 // This file is part of Blades. This program comes with ABSOLUTELY NO WARRANTY;
 // This is free software, and you are welcome to redistribute it under the
@@ -22,7 +22,6 @@ use sources::Sources;
 use taxonomies::Taxonomy;
 use types::{MutSet, Templates};
 
-use chrono::offset::Local;
 use ramhorns::{Content, Template};
 use rayon::prelude::*;
 use std::env::var;
@@ -80,7 +79,7 @@ struct MockPage {
 
 /// Get the next line from the standard input after displaying some message
 fn next_line<B: BufRead>(lines: &mut Lines<B>, message: &str) -> Result<String, std::io::Error> {
-    print!("{}", message);
+    print!("{} ", message);
     stdout().flush()?;
     lines.next().transpose().map(|s| s.unwrap_or_default())
 }
@@ -90,8 +89,8 @@ fn init() -> Result<(), Error> {
     println!("Enter the basic site info");
     let stdin = stdin();
     let mut lines = BufReader::new(stdin.lock()).lines();
-    let title = next_line(&mut lines, "Name: ")?;
-    let author = next_line(&mut lines, "Author: ")?;
+    let title = next_line(&mut lines, "Name:")?;
+    let author = next_line(&mut lines, "Author:")?;
     let config = MockConfig { title, author };
     Template::new(include_str!("templates/Blades.toml"))?.render_to_file(CONFIG_FILE, &config)?;
     write(".watch.toml", include_str!("templates/.watch.toml"))?;
@@ -104,21 +103,21 @@ fn new_page(config: &Config) -> Result<(), Error> {
     println!("Enter the basic info of the new page");
     let stdin = stdin();
     let mut lines = BufReader::new(stdin.lock()).lines();
-    let title = next_line(&mut lines, "Title: ")?;
-    let slug = next_line(&mut lines, "Slug (short name in the URL): ")?;
+    let title = next_line(&mut lines, "Title:")?;
+    let slug = next_line(&mut lines, "Slug (short name in the URL):")?;
     let mut path = Path::new(config.content_dir.as_ref()).join(next_line(
         &mut lines,
-        "Path (relative to the content directory): ",
+        "Path (relative to the content directory):",
     )?);
     create_dir_all(&path)?;
-    let date = Local::now().format("%Y-%m-%d").to_string();
+    let date = next_line(&mut lines, "Date (format YYYY-MM-DD):")?;
     path.push(format!("{}-{}.toml", &date, &slug));
 
     if path.exists() {
         let mut answer = next_line(
             &mut lines,
             &format!(
-                "The path {:?} already exists, do you want to overwrite in? [y/N] ",
+                "The path {:?} already exists, do you want to overwrite in? [y/N]",
                 &path
             ),
         )?;
