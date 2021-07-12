@@ -6,20 +6,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-mod config;
-mod error;
-mod page;
-mod sources;
-mod tasks;
-mod taxonomies;
-mod types;
-
-use config::Config;
-use error::Error;
-use page::Page;
-use sources::Sources;
-use taxonomies::Taxonomy;
-use types::{MutSet, Templates};
+use blades::*;
 
 use chrono::offset::Local;
 use ramhorns::{Content, Template};
@@ -171,11 +158,11 @@ fn build(config: &Config) -> Result<(), Error> {
                     taxonomy.render_key(name, labeled, &config, &taxonomies, &pages, &rendered)
                 })
             })?;
-            tasks::render_meta(&pages, &taxonomies, &config, &rendered)
+            render_meta(&pages, &taxonomies, &config, &rendered)
         },
     );
     res_l.and(res_r)?;
-    tasks::cleanup(rendered, FILELIST)
+    cleanup(rendered, FILELIST)
 }
 
 fn main() {
@@ -210,14 +197,14 @@ fn main() {
         }
         Some(Cmd::New) => new_page(&config),
         Some(Cmd::Build) => build(&config),
-        Some(Cmd::Colocate) => tasks::colocate_assets(&config),
-        Some(Cmd::All) => build(&config).and_then(|_| tasks::colocate_assets(&config)),
+        Some(Cmd::Colocate) => colocate_assets(&config),
+        Some(Cmd::All) => build(&config).and_then(|_| colocate_assets(&config)),
         Some(Cmd::Lazy) | None => build(&config).and_then(|_| {
             if read_to_string(OLD_THEME)
                 .map(|old| old != config.theme)
                 .unwrap_or(true)
             {
-                tasks::colocate_assets(&config)?;
+                colocate_assets(&config)?;
                 write(OLD_THEME, config.theme.as_ref()).map_err(Into::into)
             } else {
                 Ok(())
