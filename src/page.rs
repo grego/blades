@@ -6,14 +6,14 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-
 use crate::config::Config;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::sources::{Source, Sources};
 use crate::tasks::render;
 use crate::taxonomies::{Classification, Taxonomies};
 use crate::types::{Ancestors, Any, DateTime, HashMap, MutSet, Templates};
 
+use arrayvec::ArrayVec;
 use beef::lean::Cow;
 use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Section, Template};
 use serde::Deserialize;
@@ -23,6 +23,7 @@ use std::fs::create_dir_all;
 use std::num::NonZeroUsize;
 use std::ops::Range;
 use std::path::{is_separator, Path, PathBuf};
+use std::str::from_utf8;
 
 /// All the information regarding one page
 #[derive(Content, Deserialize)]
@@ -54,7 +55,7 @@ pub struct Page<'p> {
     paginate_by: Option<NonZeroUsize>,
     #[serde(default)]
     #[ramhorns(skip)]
-    pictures: Cow<'p, [Picture<'p>]>,
+    pictures: ArrayVec<Picture<'p>, 4>,
     #[serde(borrow, default)]
     image: Cow<'p, str>,
     #[serde(borrow, default)]
@@ -246,8 +247,11 @@ impl<'p> Page<'p> {
     /// Construct a new page from the source.
     #[inline]
     pub fn new(source: &'p Source, data: &'p Sources, config: &Config) -> Result<Self> {
-        let mut page: Page = toml::from_slice(&data.data[source.source.clone()])
-            .map_err(|e| (e, source.path.clone()))?;
+        let mut page: Page =
+            toml::from_slice(&data.data[source.source.clone()]).map_err(|e| Error::Toml {
+                source: e,
+                name: from_utf8(&data.data[source.path.clone()]).unwrap().into(),
+            })?;
 
         let is_section = source.is_section;
         page.is_section = is_section;
@@ -258,7 +262,8 @@ impl<'p> Page<'p> {
             page.date = page.date.or_else(|| source.date.map(|d| d.into()));
         }
 
-        let path = &source.path;
+        // The path is already ensured to be valid UTF-8
+        let path = from_utf8(&data.data[source.path.clone()]).unwrap();
         let path = path
             .strip_prefix(config.content_dir.as_ref())
             .unwrap_or(path);

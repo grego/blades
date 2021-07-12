@@ -29,9 +29,6 @@ pub enum Error {
     /// No template with the given name was found
     #[display(fmt = "Template {} not found", "_0")]
     MissingTemplate(#[error(ignore)] Box<str>),
-    /// File name doesn't is not a valid UTF-8 string
-    #[display(fmt = "File {} is not a valid UTF-8 text", "_0")]
-    InvalidUtf8(#[error(ignore)] Box<str>),
 }
 
 /// A convenience wrapper around std Result
@@ -46,14 +43,5 @@ impl From<std::io::Error> for Error {
 impl From<ramhorns::Error> for Error {
     fn from(other: ramhorns::Error) -> Self {
         Self::Ramhorns(other)
-    }
-}
-
-impl<T: Into<Box<str>>> From<(toml::de::Error, T)> for Error {
-    fn from((source, name): (toml::de::Error, T)) -> Self {
-        Self::Toml {
-            source,
-            name: name.into(),
-        }
     }
 }

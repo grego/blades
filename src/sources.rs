@@ -6,9 +6,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-
 use crate::config::Config;
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 use std::fs::{read_dir, File};
 use std::io::{ErrorKind, Read};
@@ -20,7 +19,8 @@ use std::time::SystemTime;
 pub struct Source {
     /// Range in the slice of data
     pub(crate) source: Range<usize>,
-    pub(crate) path: Box<str>,
+    /// Range in the slice of data
+    pub(crate) path: Range<usize>,
     /// Range in the slice of sources
     pub(crate) pages: Range<usize>,
     /// Range in the slice of sources
@@ -42,14 +42,14 @@ pub struct Sources {
 impl Source {
     #[inline]
     fn new(
-        path: PathBuf,
+        path: Range<usize>,
         src: Range<usize>,
         parent: usize,
         date: Option<SystemTime>,
     ) -> Result<Self> {
         Ok(Self {
             source: src,
-            path: path_to_string(path)?.into(),
+            path,
             pages: 0..0,
             subsections: 0..0,
             is_section: false,
@@ -64,7 +64,7 @@ impl Source {
     fn empty(section: PathBuf, parent: usize) -> Self {
         Self {
             source: 0..0,
-            path: "".into(),
+            path: 0..0,
             pages: 0..0,
             subsections: 0..0,
             is_section: true,
@@ -109,8 +109,12 @@ impl Sources {
         {
             let start = self.data.len();
             let read = File::open(&path)?.read_to_end(&mut self.data)?;
+            let mid = start + read;
+            self.data
+                .extend_from_slice(path.to_string_lossy().as_ref().as_ref());
+            let end = self.data.len();
             self.sources
-                .push(Source::new(path, start..(start + read), index, date)?);
+                .push(Source::new(mid..end, start..mid, index, date)?);
         }
         let end = self.sources.len();
 
@@ -129,10 +133,14 @@ impl Sources {
             Err(e) if e.kind() == ErrorKind::NotFound => (0, None),
             Err(e) => return Err(e.into()),
         };
+        let mid = source_start + read;
         path.pop();
+        self.data
+            .extend_from_slice(path.to_string_lossy().as_ref().as_ref());
+        let source_end = self.data.len();
 
-        self.sources[index].path = path_to_string(path)?.into();
-        self.sources[index].source = source_start..(source_start + read);
+        self.sources[index].path = mid..source_end;
+        self.sources[index].source = source_start..mid;
         self.sources[index].pages = start..end;
         self.sources[index].date = date;
         if len > end {
@@ -170,11 +178,4 @@ impl Sources {
     pub fn sources(&self) -> &[Source] {
         &self.sources
     }
-}
-
-#[inline]
-fn path_to_string(path: PathBuf) -> Result<String> {
-    path.into_os_string()
-        .into_string()
-        .map_err(|s| Error::InvalidUtf8(s.to_string_lossy().as_ref().into()))
 }

@@ -6,7 +6,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-
 use crate::taxonomies::TaxonMeta;
 use crate::types::{Any, HashMap};
 
@@ -82,7 +81,6 @@ struct Author<'a> {
     #[serde(borrow, default)]
     avatar: Cow<'a, str>,
 }
-
 
 #[inline]
 const fn default_content_dir() -> Cow<'static, str> {

@@ -6,7 +6,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-
 use crate::config::{Config, TEMPLATE_DIR};
 use crate::error::{Error, Result};
 
@@ -213,7 +212,13 @@ impl<'a> Content for Any<'a> {
             Any::List(vec) => vec.render_section(section, encoder),
             Any::Map(map) => map.render_section(section, encoder),
             Any::DateTime(dt) => dt.render_section(section, encoder),
-            _ => if self.is_truthy() { section.render(encoder) } else { Ok(()) },
+            _ => {
+                if self.is_truthy() {
+                    section.render(encoder)
+                } else {
+                    Ok(())
+                }
+            }
         }
     }
 

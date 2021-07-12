@@ -6,7 +6,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-
 use crate::config::{Config, ASSET_SRC_DIR};
 use crate::error::Result;
 use crate::page::{Page, Pages};

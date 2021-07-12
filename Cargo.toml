@@ -13,7 +13,8 @@ homepage = "https://www.getblades.org"
 
 [dependencies]
 toml = "0.5.8"
-ramhorns = "0.10.2"
+ramhorns = "0.11"
+arrayvec = { version = "0.7.1", features = ["serde"] }
 beef = { version = "0.5", features = ["impl_serde"]}
 serde = { version = "1.0.126", features = ["derive"] }
 derive_more = { version = "0.99.4", features = ["display", "error"], default_features = false }

@@ -6,13 +6,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-
 use crate::config::Config;
 use crate::error::Result;
 use crate::page::{Page, PageRef, Paginate, Pagination, Permalink};
 use crate::tasks::render;
 use crate::types::{HashMap, MutSet, Templates};
 
+use arrayvec::ArrayVec;
 use beef::lean::Cow;
 use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Section, Template};
 use serde::Deserialize;
@@ -36,7 +36,7 @@ pub(crate) struct Species<'s>(
 );
 
 /// All the classes in all taxonomies one page belongs to.
-pub(crate) type Taxonomies<'p> = HashMap<&'p str, Vec<Species<'p>>>;
+pub(crate) type Taxonomies<'p> = HashMap<&'p str, ArrayVec<Species<'p>, 4>>;
 
 /// Classification of all pages on the site.
 pub type Classification<'t, 'r> = HashMap<&'r str, Taxonomy<'t, 'r>>;
