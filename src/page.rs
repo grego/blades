@@ -15,7 +15,7 @@ use crate::types::{Ancestors, Any, DateTime, HashMap, MutSet, Templates};
 use arrayvec::ArrayVec;
 use beef::lean::Cow;
 use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Section, Template};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use std::cmp::{min, Reverse};
 use std::fs::create_dir_all;
@@ -25,52 +25,50 @@ use std::ops::Range;
 use std::path::{is_separator, Path, PathBuf};
 
 /// All the information regarding one page
-#[derive(Content, Default, Deserialize)]
+#[derive(Content, Default, Deserialize, Serialize)]
 pub struct Page<'p> {
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     title: Cow<'p, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     slug: Cow<'p, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "is_ancestors_empty")]
     path: Ancestors<'p>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "is_cow_empty")]
     alternative_paths: Cow<'p, [&'p str]>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "equal_zero")]
     #[ramhorns(skip)]
     pub(crate) weight: i64,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     #[ramhorns(skip)]
     template: Cow<'p, str>,
-    #[serde(borrow, default = "default_page")]
+    #[serde(borrow, default = "default_page", skip_serializing_if = "eq_default_page")]
     #[ramhorns(skip)]
     page_template: Cow<'p, str>,
-    #[serde(borrow, default = "default_section")]
+    #[serde(borrow, default = "default_section", skip_serializing_if = "eq_default_section")]
     #[ramhorns(skip)]
     section_template: Cow<'p, str>,
-    #[serde(borrow, default = "default_gallery")]
+    #[serde(borrow, default = "default_gallery", skip_serializing_if = "eq_default_gallery")]
     #[ramhorns(skip)]
     gallery_template: Cow<'p, str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[ramhorns(skip)]
     paginate_by: Option<NonZeroUsize>,
-    #[serde(default)]
-    #[ramhorns(skip)]
-    pictures: ArrayVec<Picture<'p>, 4>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     image: Cow<'p, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     summary: Cow<'p, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     #[md]
     content: Cow<'p, str>,
 
     pub(crate) date: Option<DateTime>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     #[ramhorns(skip)]
     sort_by_weight: bool,
     #[serde(skip)]
     is_section: bool,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     hidden: bool,
 
     #[serde(skip, default = "default_range")]
@@ -92,9 +90,13 @@ pub struct Page<'p> {
     #[serde(skip, default = "default_priority")]
     priority: f32,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "ArrayVec::is_empty")]
+    #[ramhorns(skip)]
+    pictures: ArrayVec<Picture<'p>, 4>,
+
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub(crate) taxonomies: Taxonomies<'p>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     extra: HashMap<&'p str, Any<'p>>,
 
     /// A unique number to determine whether this is the active page
@@ -103,7 +105,7 @@ pub struct Page<'p> {
     id: usize,
 }
 
-#[derive(Clone, Content, Deserialize)]
+#[derive(Clone, Content, Deserialize, Serialize)]
 pub(crate) struct Picture<'p> {
     #[serde(borrow, default)]
     alt: Cow<'p, str>,
@@ -648,4 +650,34 @@ const fn default_page() -> Cow<'static, str> {
 #[inline]
 const fn default_section() -> Cow<'static, str> {
     Cow::const_str("section.html")
+}
+
+#[inline]
+fn eq_default_gallery(c: &str) -> bool {
+    c == "gallery.html"
+}
+
+#[inline]
+fn eq_default_page(c: &str) -> bool {
+    c == "page.html"
+}
+
+#[inline]
+fn eq_default_section(c: &str) -> bool {
+    c == "section.html"
+}
+
+#[inline]
+const fn equal_zero(i: &i64) -> bool {
+    *i == 0
+}
+
+#[inline]
+fn is_cow_empty<T: Clone>(s: &Cow<[T]>) -> bool {
+    s.is_empty()
+}
+
+#[inline]
+fn is_ancestors_empty(s: &Ancestors) -> bool {
+    s.0.is_empty()
 }

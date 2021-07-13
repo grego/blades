@@ -11,7 +11,7 @@ use crate::types::{Any, HashMap};
 
 use beef::lean::Cow;
 use ramhorns::Content;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 // These are pre-defined since the life is easier when they are the same for every theme.
 pub(crate) static TEMPLATE_DIR: &str = "templates";
@@ -20,7 +20,7 @@ pub(crate) static ASSET_SRC_DIR: &str = "assets";
 
 /// Main configuration where all the site settings are set.
 /// Razor deserializes it from a given TOML file.
-#[derive(Content, Deserialize)]
+#[derive(Content, Deserialize, Serialize)]
 pub struct Config<'c> {
     /// The directory of the content
     #[serde(borrow, default = "default_content_dir")]
@@ -38,19 +38,17 @@ pub struct Config<'c> {
     #[serde(borrow, default = "default_assets")]
     pub(crate) assets: Cow<'c, str>,
     /// Name of the directory of a theme this site is using, empty if none.
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     pub theme: Cow<'c, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     title: Cow<'c, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     description: Cow<'c, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     keywords: Cow<'c, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     image: Cow<'c, str>,
-    #[serde(borrow, default)]
-    author: Option<Author<'c>>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     pub(crate) url: Cow<'c, str>,
 
     #[serde(default = "default_true")]
@@ -64,21 +62,23 @@ pub struct Config<'c> {
     #[serde(default = "default_true")]
     pub(crate) dates_of_creation: bool,
 
-    #[serde(default)]
+    #[serde(borrow, default)]
+    author: Option<Author<'c>>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     #[ramhorns(skip)]
     pub(crate) taxonomies: HashMap<&'c str, TaxonMeta<'c>>,
     extra: Option<HashMap<&'c str, Any<'c>>>,
 }
 
-#[derive(Clone, Content, Default, serde::Deserialize)]
+#[derive(Clone, Content, Default, Deserialize, Serialize)]
 struct Author<'a> {
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     name: Cow<'a, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     email: Cow<'a, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     uri: Cow<'a, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     avatar: Cow<'a, str>,
 }
 

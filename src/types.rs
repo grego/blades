@@ -31,13 +31,15 @@ pub struct Templates {
 }
 
 /// A wrapper around the `choron::NaiveDateTime`, used for rendering of dates.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
+#[serde(transparent)]
 pub struct DateTime(NaiveDateTime);
 
 /// A wrapper around a `str` representing path, used to derive `Content` implementation
 /// that acts like an iterator over the path segmets.
-#[derive(serde::Deserialize)]
-pub(crate) struct Ancestors<'a>(#[serde(borrow)] Cow<'a, str>);
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(transparent)]
+pub(crate) struct Ancestors<'a>(#[serde(borrow)] pub(crate) Cow<'a, str>);
 
 /// One segment of a path.
 #[derive(Content)]
@@ -51,7 +53,7 @@ struct Segment<'a>(
 );
 
 /// A sum of all the types that can be used in a TOML file.
-#[derive(Clone, serde::Deserialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub(crate) enum Any<'a> {
     String(#[serde(borrow)] Cow<'a, str>),

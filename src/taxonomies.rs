@@ -14,7 +14,7 @@ use crate::types::{HashMap, MutSet, Templates};
 use arrayvec::ArrayVec;
 use beef::lean::Cow;
 use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Section, Template};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use std::cmp::Reverse;
 use std::collections::hash_map::Entry;
@@ -27,7 +27,8 @@ const DEFAULT_TEMPLATE: &str = "taxonomy.html";
 const DEFAULT_KEY_TEMPLATE: &str = "taxonomy_key.html";
 
 /// One class this page is a species of.
-#[derive(Clone, Content, Deserialize)]
+#[derive(Clone, Content, Deserialize, Serialize)]
+#[serde(transparent)]
 pub(crate) struct Species<'s>(
     #[ramhorns(rename = "name")]
     #[serde(borrow)]
@@ -41,11 +42,11 @@ pub(crate) type Taxonomies<'p> = HashMap<&'p str, ArrayVec<Species<'p>, 4>>;
 pub type Classification<'t, 'r> = HashMap<&'r str, Taxonomy<'t, 'r>>;
 
 /// Information abouth the given taxonomy.
-#[derive(Content, Clone, Deserialize)]
+#[derive(Content, Clone, Deserialize, Serialize)]
 pub(crate) struct TaxonMeta<'t> {
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     title: Cow<'t, str>,
-    #[serde(borrow, default)]
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     description: Cow<'t, str>,
     #[serde(borrow, default = "default_template")]
     #[ramhorns(skip)]
@@ -55,7 +56,7 @@ pub(crate) struct TaxonMeta<'t> {
     key_template: Cow<'t, str>,
     #[ramhorns(skip)]
     paginate_by: Option<NonZeroUsize>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     #[ramhorns(skip)]
     sort_by_weight: bool,
 }
