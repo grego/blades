@@ -7,19 +7,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
 use crate::config::{Config, ASSET_SRC_DIR};
-use crate::error::Result;
 use crate::page::{Page, Pages};
 use crate::taxonomies::{Classification, TaxonList};
 use crate::types::{DateTime, MutSet};
 
 use std::fs::{copy, create_dir_all, read_dir, remove_dir_all, remove_file, File};
-use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, ErrorKind, Write};
 use std::path::{is_separator, Path, PathBuf};
 
 use ramhorns::{Content, Template};
 
 #[inline]
-pub(crate) fn render<P, C>(template: &Template, path: P, content: &C, rendered: &MutSet) -> Result
+pub(crate) fn render<P, C>(
+    template: &Template,
+    path: P,
+    content: &C,
+    rendered: &MutSet,
+) -> Result<(), ramhorns::Error>
 where
     C: Content,
     P: Into<PathBuf>,
@@ -42,7 +46,13 @@ struct Meta<'p, 'r>(
 
 impl<'p> Meta<'p, '_> {
     #[inline]
-    fn render(&self, name: &str, template: &str, path: &Path, rendered: &MutSet) -> Result {
+    fn render(
+        &self,
+        name: &str,
+        template: &str,
+        path: &Path,
+        rendered: &MutSet,
+    ) -> Result<(), ramhorns::Error> {
         render(&Template::new(template)?, path.join(name), self, rendered)
     }
 }
@@ -53,7 +63,7 @@ pub fn render_meta<'p>(
     taxons: &Classification<'p, '_>,
     config: &Config<'p>,
     rendered: &MutSet,
-) -> Result {
+) -> Result<(), ramhorns::Error> {
     let pages = Pages::new(pages, 0..pages.len(), 0, &config.url);
     let meta = Meta(DateTime::now(), pages, TaxonList(taxons), config);
     let path = Path::new(config.output_dir.as_ref());
@@ -73,11 +83,11 @@ pub fn render_meta<'p>(
     Ok(())
 }
 
-fn copy_dir(src: &mut PathBuf, dest: &mut PathBuf) -> Result {
+fn copy_dir(src: &mut PathBuf, dest: &mut PathBuf) -> Result<(), io::Error> {
     let iter = match read_dir(&src) {
         Ok(iter) => iter,
         Err(e) if e.kind() == ErrorKind::NotFound => return Ok(()),
-        Err(e) => return Err(e.into()),
+        Err(e) => return Err(e),
     };
     create_dir_all(&dest)?;
     for entry in iter.filter_map(Result::ok) {
@@ -99,7 +109,7 @@ fn copy_dir(src: &mut PathBuf, dest: &mut PathBuf) -> Result {
 /// Place assets located in the `assets` directory or in the `assets` subdirectory of the theme,
 /// if used, into a dedicated subdirectory of the output directory specified in the config
 /// (defaults to `assets`, too).
-pub fn colocate_assets(config: &Config) -> Result {
+pub fn colocate_assets(config: &Config) -> Result<(), io::Error> {
     let mut output = Path::new(config.output_dir.as_ref()).join(config.assets.as_ref());
     match remove_dir_all(&output) {
         Ok(_) => Ok(()),
@@ -120,7 +130,7 @@ pub fn colocate_assets(config: &Config) -> Result {
 
 /// Delete all the pages that were present in the previous render, but not the current one.
 /// Then, write all the paths that were rendered to the file `filelist`
-pub fn cleanup(rendered: MutSet, filelist: &str) -> Result {
+pub fn cleanup(rendered: MutSet, filelist: &str) -> Result<(), io::Error> {
     let rendered = rendered.into_inner();
     if let Ok(f) = File::open(filelist) {
         BufReader::new(f).lines().try_for_each(|filename| {

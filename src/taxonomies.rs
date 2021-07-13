@@ -7,7 +7,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
 use crate::config::Config;
-use crate::error::Result;
 use crate::page::{Page, PageRef, Paginate, Pagination, Permalink};
 use crate::tasks::render;
 use crate::types::{HashMap, MutSet, Templates};
@@ -118,7 +117,7 @@ pub struct PageLinked<'t, 'r>(
 
 impl<'t, 'r> Taxonomy<'t, 'r> {
     #[inline]
-    fn empty(slug: &'t str, templates: &'r Templates) -> Result<Self> {
+    fn empty(slug: &'t str, templates: &'r Templates) -> Result<Self, ramhorns::Error> {
         Ok(Self {
             taxonomy: TaxonMeta {
                 title: Cow::owned(title_case(slug)),
@@ -136,7 +135,11 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
     }
 
     #[inline]
-    fn new(slug: &'t str, other: &'r TaxonMeta<'t>, templates: &'r Templates) -> Result<Self> {
+    fn new(
+        slug: &'t str,
+        other: &'r TaxonMeta<'t>,
+        templates: &'r Templates,
+    ) -> Result<Self, ramhorns::Error> {
         Ok(Self {
             taxonomy: TaxonMeta {
                 title: Cow::const_str(&other.title),
@@ -168,7 +171,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         pages: &'r [Page<'t>],
         config: &'r Config<'t>,
         templates: &'r Templates,
-    ) -> Result<Classification<'t, 'r>> {
+    ) -> Result<Classification<'t, 'r>, ramhorns::Error> {
         let mut named = config
             .taxonomies
             .iter()
@@ -229,7 +232,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         classification: &Classification<'t, '_>,
         all: &[Page<'t>],
         rendered: &MutSet,
-    ) -> Result {
+    ) -> Result<(), ramhorns::Error> {
         let mut path = Path::new(config.output_dir.as_ref()).join(self.slug);
         create_dir_all(&path)?;
         path.push("index.html");
@@ -253,7 +256,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         classification: &Classification<'t, '_>,
         all: &[Page<'t>],
         rendered: &MutSet,
-    ) -> Result {
+    ) -> Result<(), ramhorns::Error> {
         let mut output = Path::new(config.output_dir.as_ref()).join(self.slug);
         output.push(title);
         create_dir_all(&output)?;

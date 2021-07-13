@@ -7,16 +7,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
 use crate::config::Config;
-use crate::error::Result;
+use crate::page::Page;
 
+use std::ffi::OsStr;
 use std::fs::{read_dir, File};
-use std::io::{ErrorKind, Read};
+use std::io::{self, Read};
 use std::ops::Range;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+/// A structure that can parse Page from binary data.
+/// Is typically a deserializer or an enum of deserializers.
+pub trait Parser: Default + Sized {
+    /// The error that can happen during parsing.
+    type Error: std::error::Error;
+    
+    /// The kind of parser that should be used, based on the file extension.
+    fn from_extension(_extension: &OsStr) -> Option<Self> {
+        Some(Self::default())
+    }
+
+    /// Parse the binary data into a Page.
+    fn parse<'a>(&self, data: &'a [u8]) -> Result<Page<'a>, Self::Error>;
+}
+
 /// Data about where the source of a one particular file is located
-pub struct Source {
+pub struct Source<P: Parser> {
     /// Range in the slice of data
     pub(crate) source: Range<usize>,
     /// Range in the slice of data
@@ -29,25 +45,27 @@ pub struct Source {
     pub(crate) parent: usize,
     pub(crate) date: Option<SystemTime>,
     pub(crate) to_load: Option<PathBuf>,
+    pub(crate) format: P,
 }
 
 /// All of the site source files
-pub struct Sources {
+pub struct Sources<P: Parser> {
     /// Binary data read of all the files
     pub(crate) data: Vec<u8>,
     /// Info about where the particular files are loaded
-    sources: Vec<Source>,
+    sources: Vec<Source<P>>,
 }
 
-impl Source {
+impl<P: Parser> Source<P> {
     #[inline]
     fn new(
         path: Range<usize>,
         src: Range<usize>,
         parent: usize,
         date: Option<SystemTime>,
-    ) -> Result<Self> {
-        Ok(Self {
+        format: P,
+    ) -> Self {
+        Self {
             source: src,
             path,
             pages: 0..0,
@@ -56,7 +74,8 @@ impl Source {
             parent,
             date,
             to_load: None,
-        })
+            format,
+        }
     }
 
     /// Create a placeholder source, not referencing any data.
@@ -71,17 +90,23 @@ impl Source {
             parent,
             date: None,
             to_load: Some(section),
+            format: P::default(),
         }
     }
 }
 
-impl Sources {
+impl<P: Parser> Sources<P> {
     /// Add all the sources from the current directory to `self`.
     #[inline]
-    fn step(&mut self, index: usize, dirs: &mut Vec<PathBuf>) -> Result<()> {
+    fn step(
+        &mut self,
+        index: usize,
+        path: PathBuf,
+        dirs: &mut Vec<PathBuf>,
+    ) -> Result<(), io::Error> {
         let start = self.sources.len();
-        let mut path = self.sources[index].to_load.take().unwrap();
-        for (path, date) in read_dir(&path)?
+        let mut index_file = None;
+        for (path, date, format) in read_dir(&path)?
             .filter_map(Result::ok)
             .filter(|entry| {
                 entry
@@ -100,21 +125,26 @@ impl Sources {
                 let date = entry.metadata().and_then(|m| m.created()).ok();
                 (entry.path(), date)
             })
-            .filter(|(path, _)| {
-                path.file_stem()
-                    .and_then(|s| path.extension().map(|e| (s, e)))
-                    .map(|(stem, extension)| extension == "toml" && stem != "index")
-                    .unwrap_or(false)
+            .filter_map(|(path, date)| {
+                let ext = path.extension().unwrap_or_default();
+                let format = P::from_extension(ext)?;
+                if path.file_stem()? == "index" {
+                    index_file = Some((path, date, format));
+                    return None;
+                };
+                Some((path, date, format))
             })
         {
             let start = self.data.len();
             let read = File::open(&path)?.read_to_end(&mut self.data)?;
             let mid = start + read;
+            let path = path.to_string_lossy();
+            let ext_start = path.rfind('.').unwrap_or_else(|| path.len());
             self.data
-                .extend_from_slice(path.to_string_lossy().as_ref().as_ref());
+                .extend_from_slice(path[..ext_start].as_ref());
             let end = self.data.len();
             self.sources
-                .push(Source::new(mid..end, start..mid, index, date)?);
+                .push(Source::new(mid..end, start..mid, index, date, format));
         }
         let end = self.sources.len();
 
@@ -124,17 +154,14 @@ impl Sources {
         let len = self.sources.len();
 
         let source_start = self.data.len();
-        path.push("index.toml");
-        let (read, date) = match File::open(&path) {
-            Ok(mut file) => (
-                file.read_to_end(&mut self.data)?,
-                file.metadata()?.created().ok(),
-            ),
-            Err(e) if e.kind() == ErrorKind::NotFound => (0, None),
-            Err(e) => return Err(e.into()),
+        let read = if let Some((path, date, format)) = index_file {
+            self.sources[index].date = date;
+            self.sources[index].format = format;
+            File::open(path)?.read_to_end(&mut self.data)?
+        } else {
+            0
         };
         let mid = source_start + read;
-        path.pop();
         self.data
             .extend_from_slice(path.to_string_lossy().as_ref().as_ref());
         let source_end = self.data.len();
@@ -142,7 +169,6 @@ impl Sources {
         self.sources[index].path = mid..source_end;
         self.sources[index].source = source_start..mid;
         self.sources[index].pages = start..end;
-        self.sources[index].date = date;
         if len > end {
             self.sources[index].subsections = end..len;
         }
@@ -151,7 +177,7 @@ impl Sources {
     }
 
     /// Load all the sources from the directory specified by the config.
-    pub fn load(config: &Config) -> Result<Self> {
+    pub fn load(config: &Config) -> Result<Self, io::Error> {
         let mut sources = Self {
             data: Vec::with_capacity(65536),
             sources: Vec::with_capacity(64),
@@ -165,8 +191,8 @@ impl Sources {
         let mut i = 0;
         // Check all the sources whether they contain something more to load.
         while i < sources.sources.len() {
-            if sources.sources[i].to_load.is_some() {
-                sources.step(i, &mut dirs_buffer)?;
+            if let Some(path) = sources.sources[i].to_load.take() {
+                sources.step(i, path, &mut dirs_buffer)?;
             }
             i += 1;
         }
@@ -175,7 +201,7 @@ impl Sources {
     }
 
     /// Get a reference of the innel list of sources.
-    pub fn sources(&self) -> &[Source] {
+    pub fn sources(&self) -> &[Source<P>] {
         &self.sources
     }
 }

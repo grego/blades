@@ -7,7 +7,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
 use crate::config::{Config, TEMPLATE_DIR};
-use crate::error::{Error, Result};
 
 use beef::lean::Cow;
 use chrono::{DateTime as CDateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, Timelike};
@@ -65,7 +64,7 @@ pub(crate) enum Any<'a> {
 impl Templates {
     /// Load the templates from the directories specified by the config.
     #[inline]
-    pub fn load(config: &Config) -> Result<Self, Error> {
+    pub fn load(config: &Config) -> Result<Self, ramhorns::Error> {
         Ok(Self {
             templates: if Path::new(TEMPLATE_DIR).exists() {
                 Some(Ramhorns::from_folder(TEMPLATE_DIR)?)
@@ -89,12 +88,12 @@ impl Templates {
 
     /// Get one template with the given name or return an error.
     #[inline]
-    pub fn get(&self, name: &str) -> Result<&Template<'static>, Error> {
+    pub fn get(&self, name: &str) -> Result<&Template<'static>, ramhorns::Error> {
         self.templates
             .as_ref()
             .and_then(|t| t.get(name))
             .or_else(|| self.theme.as_ref().and_then(|t| t.get(name)))
-            .ok_or_else(|| Error::MissingTemplate(name.into()))
+            .ok_or_else(|| ramhorns::Error::IllegalPartial(name.into()))
     }
 }
 
@@ -415,6 +414,10 @@ impl<'de> Deserialize<'de> for DateTime {
                     return Err(de::Error::custom("datetime key not found"));
                 }
                 let v: &str = visitor.next_value()?;
+                self.visit_str(v)
+            }
+
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
                 v.parse::<NaiveDateTime>()
                     .or_else(|_| v.parse::<NaiveDate>().map(|d| d.and_hms(0, 0, 0)))
                     .or_else(|_| NaiveDateTime::parse_from_str(v, "%F %T%.f"))

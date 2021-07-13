@@ -7,8 +7,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
 use crate::config::Config;
-use crate::error::{Error, Result};
-use crate::sources::{Source, Sources};
+use crate::sources::{Parser, Source, Sources};
 use crate::tasks::render;
 use crate::taxonomies::{Classification, Taxonomies};
 use crate::types::{Ancestors, Any, DateTime, HashMap, MutSet, Templates};
@@ -20,13 +19,13 @@ use serde::Deserialize;
 
 use std::cmp::{min, Reverse};
 use std::fs::create_dir_all;
+use std::io;
 use std::num::NonZeroUsize;
 use std::ops::Range;
 use std::path::{is_separator, Path, PathBuf};
-use std::str::from_utf8;
 
 /// All the information regarding one page
-#[derive(Content, Deserialize)]
+#[derive(Content, Default, Deserialize)]
 pub struct Page<'p> {
     #[serde(borrow, default)]
     title: Cow<'p, str>,
@@ -221,7 +220,7 @@ pub(crate) trait Paginate: Content + Sized {
         path: &mut PathBuf,
         tpl: &Template,
         rendered: &MutSet,
-    ) -> Result<()> {
+    ) -> Result<(), ramhorns::Error> {
         let count = last - first;
         let by = min(by, count);
         let len = count / by + ((count % by != 0) as usize);
@@ -246,12 +245,16 @@ pub(crate) trait Paginate: Content + Sized {
 impl<'p> Page<'p> {
     /// Construct a new page from the source.
     #[inline]
-    pub fn new(source: &'p Source, data: &'p Sources, config: &Config) -> Result<Self> {
-        let mut page: Page =
-            toml::from_slice(&data.data[source.source.clone()]).map_err(|e| Error::Toml {
-                source: e,
-                name: from_utf8(&data.data[source.path.clone()]).unwrap().into(),
-            })?;
+    pub fn new<P: Parser>(
+        source: &'p Source<P>,
+        data: &'p Sources<P>,
+        config: &Config,
+    ) -> Result<Self, (P::Error, Box<str>)> {
+        let path = std::str::from_utf8(&data.data[source.path.clone()]).unwrap();
+        let mut page = source
+            .format
+            .parse(&data.data[source.source.clone()])
+            .map_err(|e| (e, path.into()))?;
 
         let is_section = source.is_section;
         page.is_section = is_section;
@@ -263,14 +266,12 @@ impl<'p> Page<'p> {
         }
 
         // The path is already ensured to be valid UTF-8
-        let path = from_utf8(&data.data[source.path.clone()]).unwrap();
         let path = path
             .strip_prefix(config.content_dir.as_ref())
             .unwrap_or(path);
         let path = path.strip_prefix(is_separator).unwrap_or(path);
         if is_section || page.slug.is_empty() || page.slug.contains(is_separator) {
             let slug = path.rsplit(is_separator).next().unwrap_or_default();
-            let slug = slug.strip_suffix(".toml").unwrap_or(slug);
             page.slug = Cow::const_str(slug);
         }
         let page_path = page.path.as_ref();
@@ -284,10 +285,16 @@ impl<'p> Page<'p> {
         Ok(page)
     }
 
+    /// Replace the page content with `content`.
+    pub fn with_content(mut self, content: Cow<'p, str>) -> Self {
+        self.content = content;
+        self
+    }
+
     /// Appropriately sort the given vector of pages and create all the directories where
     /// they will be rendered to.
     #[inline]
-    pub fn prepare(mut pages: Vec<Self>, config: &Config) -> Result<Vec<Self>> {
+    pub fn prepare(mut pages: Vec<Self>, config: &Config) -> Result<Vec<Self>, io::Error> {
         let output_dir = Path::new(config.output_dir.as_ref());
         for i in 0..pages.len() {
             let page = &pages[i];
@@ -388,7 +395,7 @@ impl<'p> Page<'p> {
         config: &Config<'p>,
         classification: &Classification<'p, '_>,
         rendered: &MutSet,
-    ) -> Result {
+    ) -> Result<(), ramhorns::Error> {
         let output_dir = Path::new(config.output_dir.as_ref());
         let mut output = output_dir.join(self.path.as_ref());
         output.push(self.slug.as_ref());

@@ -12,7 +12,6 @@
 //!   static site generator.
 #![warn(missing_docs)]
 mod config;
-mod error;
 mod page;
 mod sources;
 mod tasks;
@@ -20,9 +19,8 @@ mod taxonomies;
 mod types;
 
 pub use config::Config;
-pub use error::{Error, Result};
 pub use page::Page;
-pub use sources::{Source, Sources};
+pub use sources::{Parser, Source, Sources};
 pub use tasks::{cleanup, colocate_assets, render_meta};
 pub use taxonomies::Taxonomy;
 pub use types::{MutSet, Templates};
