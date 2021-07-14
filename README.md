@@ -30,6 +30,13 @@ like pagination or breadcrumbs and even generate image galleries.
 Sitemap and RSS feed are automatically rendered.  
 All done without hassle, faster than you blink.
 
+# Using Blades as a library
+Main components of Blades are also exported as a library. They are parser agnostic, so they can be used
+to generate a website using any format that implements `serde::Deserialize`.
+Currently, Cargo doesn't support binary-only dependencies. As such, these dependencies are behind
+the `bin` feature gate, which is enabled by default. When using Blades as a library, they are not
+necessary, so it is recommended to import blades with `default_features = false`.
+
 ## Why not _`blades`_?
 Unlike other monolithic generators, Blades is modest in its scope. All it does is generating your site.
 It doesn't do any fancy stuff like transpiling Haskell to minified Javascript, or ever

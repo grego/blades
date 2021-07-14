@@ -1,6 +1,6 @@
 [package]
 name = "blades"
-version = "0.1.4"
+version = "0.2.0"
 authors = ["Maroš Grego <maros@grego.site>"]
 edition = "2018"
 description = "Blazing fast dead simple static site generator"
@@ -12,17 +12,23 @@ readme = "README.md"
 homepage = "https://www.getblades.org"
 
 [dependencies]
-ramhorns = "0.11"
+ramhorns = "0.12"
 arrayvec = { version = "0.7.1", features = ["serde"] }
 beef = { version = "0.5", features = ["impl_serde"]}
 serde = { version = "1.0.126", features = ["derive"] }
 chrono = { version = "0.4.19", features = ["clock", "serde"], default_features = false }
-ahash = "0.7.3"
+ahash = "0.7.4"
 parking_lot = "0.11.1"
-toml = "0.5.8"
-rayon = "1.5.1"
-structopt = "0.3.21"
-thiserror = "1.0.26"
+
+# Cargo doesn't support binary-only dependencies yet.
+toml = { version = "0.5.8", optional = true }
+rayon = { version = "1.5.1", optional = true }
+structopt = { version = "0.3.22", optional = true }
+thiserror = { version = "1.0.26", optional = true }
+
+[features]
+bin = ["toml", "rayon", "structopt", "thiserror"]
+default = ["bin"]
 
 [profile.release]
 lto = true

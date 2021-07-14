@@ -21,7 +21,7 @@ use std::path::{is_separator, Path, PathBuf};
 use std::time::SystemTime;
 
 pub(crate) type HashMap<K, V> = std::collections::HashMap<K, V, ahash::RandomState>;
-/// A set of all the rendered paths. Behind a mutex, so it can be written from multiple threads.
+/// A set of all rendered paths. Behind a mutex, so it can be written from multiple threads.
 pub type MutSet<T = PathBuf> = parking_lot::Mutex<HashSet<T, ahash::RandomState>>;
 
 /// Aggregation of all the templets of the site's theme and its template dir.
@@ -95,7 +95,7 @@ impl Templates {
             .as_ref()
             .and_then(|t| t.get(name))
             .or_else(|| self.theme.as_ref().and_then(|t| t.get(name)))
-            .ok_or_else(|| ramhorns::Error::IllegalPartial(name.into()))
+            .ok_or_else(|| ramhorns::Error::NotFound(name.into()))
     }
 }
 
