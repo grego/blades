@@ -296,7 +296,7 @@ impl<'p> Page<'p> {
     /// Appropriately sort the given vector of pages and create all the directories where
     /// they will be rendered to.
     #[inline]
-    pub fn prepare(mut pages: Vec<Self>, config: &Config) -> Result<Vec<Self>, io::Error> {
+    pub fn prepare(mut pages: Vec<Self>, config: &Config) -> Result<Box<[Self]>, io::Error> {
         let output_dir = Path::new(config.output_dir.as_ref());
         for i in 0..pages.len() {
             let page = &pages[i];
@@ -343,7 +343,7 @@ impl<'p> Page<'p> {
             pages[i].id = i;
         }
 
-        Ok(pages)
+        Ok(pages.into())
     }
 
     /// Get a reference of the page, in context of its subpages and subsections.
