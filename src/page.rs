@@ -12,7 +12,6 @@ use crate::tasks::render;
 use crate::taxonomies::{Classification, Taxonomies};
 use crate::types::{Ancestors, Any, DateTime, HashMap, MutSet, Templates};
 
-use arrayvec::ArrayVec;
 use beef::lean::Cow;
 use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Section, Template};
 use serde::{Deserialize, Serialize};
@@ -90,9 +89,9 @@ pub struct Page<'p> {
     #[serde(skip, default = "default_priority")]
     priority: f32,
 
-    #[serde(default, skip_serializing_if = "ArrayVec::is_empty")]
+    #[serde(default, skip_serializing_if = "is_cow_empty")]
     #[ramhorns(skip)]
-    pictures: ArrayVec<Picture<'p>, 4>,
+    pictures: Cow<'p, [Picture<'p>]>,
 
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub(crate) taxonomies: Taxonomies<'p>,
@@ -110,7 +109,6 @@ pub(crate) struct Picture<'p> {
     #[serde(borrow, default)]
     alt: Cow<'p, str>,
     #[serde(borrow, default)]
-    #[md]
     caption: Cow<'p, str>,
     #[serde(borrow)]
     file: Cow<'p, str>,

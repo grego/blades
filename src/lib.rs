@@ -11,7 +11,7 @@
 //!  dead simple
 //!   static site generator.
 //!
-//! #Features
+//! # Features
 //! Currently, Cargo doesn't support binary-only dependencies. As such, these dependencies are behind
 //! the `bin` feature gate, which is enabled by default. When using Blades as a library, they are not
 //! necessary, so it is recommended to import blades with `default_features = false`.

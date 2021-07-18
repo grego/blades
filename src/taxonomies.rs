@@ -36,7 +36,7 @@ pub(crate) struct Species<'s>(
 );
 
 /// All the classes in all taxonomies one page belongs to.
-pub(crate) type Taxonomies<'p> = HashMap<&'p str, ArrayVec<Species<'p>, 4>>;
+pub(crate) type Taxonomies<'p> = HashMap<&'p str, ArrayVec<Species<'p>, 6>>;
 
 /// Classification of all pages on the site.
 pub type Classification<'t, 'r> = HashMap<&'r str, Taxonomy<'t, 'r>>;
