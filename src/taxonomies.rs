@@ -13,7 +13,7 @@ use crate::types::{HashMap, MutSet, Templates};
 
 use arrayvec::ArrayVec;
 use beef::lean::Cow;
-use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Section, Template};
+use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Section};
 use serde::{Deserialize, Serialize};
 
 use std::cmp::Reverse;
@@ -68,10 +68,6 @@ pub struct Taxonomy<'t, 'r> {
     taxonomy: TaxonMeta<'r>,
     slug: &'t str,
     keys: TaxDict<'t, 'r>,
-    #[ramhorns(skip)]
-    template: &'r Template<'static>,
-    #[ramhorns(skip)]
-    key_template: &'r Template<'static>,
 }
 
 /// All the pages in one taxonomical category, classified by the class name
@@ -118,8 +114,8 @@ pub struct PageLinked<'t, 'r>(
 
 impl<'t, 'r> Taxonomy<'t, 'r> {
     #[inline]
-    fn empty(slug: &'t str, templates: &'r Templates) -> Result<Self, ramhorns::Error> {
-        Ok(Self {
+    fn empty(slug: &'t str) -> Self {
+        Self {
             taxonomy: TaxonMeta {
                 title: Cow::owned(title_case(slug)),
                 description: Cow::const_str(""),
@@ -130,18 +126,12 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
             },
             slug,
             keys: TaxDict(HashMap::default()),
-            template: templates.get(DEFAULT_TEMPLATE)?,
-            key_template: templates.get(DEFAULT_KEY_TEMPLATE)?,
-        })
+        }
     }
 
     #[inline]
-    fn new(
-        slug: &'t str,
-        other: &'r TaxonMeta<'t>,
-        templates: &'r Templates,
-    ) -> Result<Self, ramhorns::Error> {
-        Ok(Self {
+    fn new(slug: &'t str, other: &'r TaxonMeta<'t>) -> Self {
+        Self {
             taxonomy: TaxonMeta {
                 title: Cow::const_str(&other.title),
                 description: Cow::const_str(&other.description),
@@ -152,9 +142,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
             },
             slug,
             keys: TaxDict(HashMap::default()),
-            template: templates.get(&other.template)?,
-            key_template: templates.get(&other.key_template)?,
-        })
+        }
     }
 
     #[inline]
@@ -168,16 +156,12 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
 
     /// Classify the given pages into taxonomies specified by the config.
     #[inline]
-    pub fn classify(
-        pages: &'r [Page<'t>],
-        config: &'r Config<'t>,
-        templates: &'r Templates,
-    ) -> Result<Classification<'t, 'r>, ramhorns::Error> {
-        let mut named = config
+    pub fn classify(pages: &'r [Page<'t>], config: &'r Config<'t>) -> Classification<'t, 'r> {
+        let mut named: Classification = config
             .taxonomies
             .iter()
-            .map(|(&key, tax)| Taxonomy::new(key, tax, templates).map(|t| (key, t)))
-            .collect::<Result<HashMap<_, _>, _>>()?;
+            .map(|(&key, tax)| (key, Taxonomy::new(key, tax)))
+            .collect();
 
         for page in pages {
             for (class, family) in &page.taxonomies {
@@ -189,7 +173,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
                     let taxon = match named.entry(class) {
                         Entry::Occupied(o) => o.into_mut(),
                         Entry::Vacant(v) => {
-                            let taxonomy = Taxonomy::empty(class, templates)?;
+                            let taxonomy = Taxonomy::empty(class);
                             v.insert(taxonomy)
                         }
                     };
@@ -215,8 +199,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
                     .for_each(|(_, pages)| pages.sort_unstable_by_key(|page| Reverse(page.0.date)))
             }
         }
-
-        Ok(named)
+        named
     }
 
     /// Get a reference to the key map of the given taxonomy.
@@ -232,6 +215,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         config: &Config<'t>,
         classification: &Classification<'t, '_>,
         all: &[Page<'t>],
+        templates: &Templates,
         rendered: &MutSet,
     ) -> Result<(), ramhorns::Error> {
         let mut path = Path::new(config.output_dir.as_ref()).join(self.slug);
@@ -244,18 +228,19 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
             index: all[0].by_ref(all, usize::MAX, &config.url),
             classification,
         };
-        render(self.template, path, &contexted, rendered)
+        let template = templates.get(&self.taxonomy.template)?;
+        render(template, path, &contexted, rendered)
     }
 
     /// Render one key of this taxonomy into the output directory specified by the config.
     #[inline]
     pub fn render_key(
         &self,
-        title: &str,
-        pages: &[PageLinked<'t, '_>],
+        (title, pages): (&str, &[PageLinked<'t, '_>]),
         config: &Config<'t>,
         classification: &Classification<'t, '_>,
         all: &[Page<'t>],
+        templates: &Templates,
         rendered: &MutSet,
     ) -> Result<(), ramhorns::Error> {
         let mut output = Path::new(config.output_dir.as_ref()).join(self.slug);
@@ -278,10 +263,11 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
             .paginate_by
             .map(NonZeroUsize::get)
             .unwrap_or(0);
+        let key_template = templates.get(&self.taxonomy.key_template)?;
         if by > 0 && pages.len() > by {
-            contexted.render_paginated(0, pages.len(), by, &mut output, self.key_template, rendered)
+            contexted.render_paginated(0, pages.len(), by, &mut output, key_template, rendered)
         } else {
-            render(self.key_template, output, &contexted, rendered)
+            render(key_template, output, &contexted, rendered)
         }
     }
 }

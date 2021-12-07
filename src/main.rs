@@ -123,8 +123,7 @@ impl Parser for Format {
             Format::Markdown => {
                 let (header, content) = separate_md_header(data);
                 let page: Page = toml::from_slice(header)?;
-                std::str::from_utf8(content)
-                    .map(|s| page.with_content(s.trim().into()))?
+                std::str::from_utf8(content).map(|s| page.with_content(s.trim().into()))?
             }
         })
     }
@@ -237,37 +236,37 @@ fn new_page(config: &Config) -> Result<(), Error> {
 /// The actual logic of task parallelisation.
 /// This is the only place in the crate where Rayon is used.
 fn build(config: &Config) -> Result<(), Error> {
-    let sources: Sources<Format> = Sources::load(&config)?;
+    let sources: Sources<Format> = Sources::load(config)?;
     let (templates, pages) = rayon::join(
-        || Templates::load(&config),
+        || Templates::load(config),
         || -> Result<_, Error> {
             let pages = sources
                 .sources()
                 .par_iter()
-                .map(|src| Page::new(src, &sources, &config))
+                .map(|src| Page::new(src, &sources, config))
                 .collect::<Result<Vec<_>, _>>()?;
-            Page::prepare(pages, &config).map_err(Into::into)
+            Page::prepare(pages, config).map_err(Into::into)
         },
     );
     let (templates, pages) = (templates?, pages?);
 
-    let taxonomies = Taxonomy::classify(&pages, &config, &templates)?;
+    let taxonomies = Taxonomy::classify(&pages, config);
 
     let rendered = MutSet::default();
     let (res_l, res_r) = rayon::join(
         || {
             pages.par_iter().try_for_each(|page| {
-                page.render(&pages, &templates, &config, &taxonomies, &rendered)
+                page.render(&pages, &templates, config, &taxonomies, &rendered)
             })
         },
         || -> Result<(), Error> {
             taxonomies.par_iter().try_for_each(|(_, taxonomy)| {
-                taxonomy.render(&config, &taxonomies, &pages, &rendered)?;
-                taxonomy.keys().par_iter().try_for_each(|(name, labeled)| {
-                    taxonomy.render_key(name, labeled, &config, &taxonomies, &pages, &rendered)
+                taxonomy.render(config, &taxonomies, &pages, &templates, &rendered)?;
+                taxonomy.keys().par_iter().try_for_each(|(n, l)| {
+                    taxonomy.render_key((n, l), config, &taxonomies, &pages, &templates, &rendered)
                 })
             })?;
-            render_meta(&pages, &taxonomies, &config, &rendered).map_err(Into::into)
+            render_meta(&pages, &taxonomies, config, &rendered).map_err(Into::into)
         },
     );
     res_l?;
