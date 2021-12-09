@@ -16,59 +16,78 @@ use beef::lean::Cow;
 use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Section, Template};
 use serde::{Deserialize, Serialize};
 
-use std::cmp::{min, Reverse};
+use std::cmp::{min, Ordering, Reverse};
 use std::fs::create_dir_all;
 use std::io;
 use std::num::NonZeroUsize;
 use std::ops::Range;
+use std::ops::{Deref, DerefMut};
 use std::path::{is_separator, Path, PathBuf};
 
 /// All the information regarding one page
 #[derive(Content, Default, Deserialize, Serialize)]
 pub struct Page<'p> {
+    /// Title of the page.
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    title: Cow<'p, str>,
+    pub title: Cow<'p, str>,
+    /// The file name this page is rendered into, without the .html extension.
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    slug: Cow<'p, str>,
+    pub slug: Cow<'p, str>,
+    /// The path in the output directory this page is rendered into.
     #[serde(borrow, default, skip_serializing_if = "is_ancestors_empty")]
-    path: Ancestors<'p>,
-    #[serde(default, skip_serializing_if = "is_cow_empty")]
-    alternative_paths: Cow<'p, [&'p str]>,
+    pub path: Ancestors<'p>,
+    /// A list of alternative paths to render this page in, relative to the output directory.
+    #[serde(default, skip_serializing_if = "is_slice_empty")]
+    pub alternative_paths: Box<[&'p str]>,
+    /// A weight of the page, used if a collection this page is in is sorted by weight.
     #[serde(default, skip_serializing_if = "equal_zero")]
     #[ramhorns(skip)]
-    pub(crate) weight: i64,
+    pub weight: i64,
+    /// A template to render this page with.
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     #[ramhorns(skip)]
-    template: Cow<'p, str>,
-    #[serde(borrow, default = "default_page", skip_serializing_if = "eq_default_page")]
+    pub template: Cow<'p, str>,
+    /// A template to render every subpage with (unless it specifies another template).
+    #[serde(borrow, default = "def_page", skip_serializing_if = "eq_def_page")]
     #[ramhorns(skip)]
-    page_template: Cow<'p, str>,
-    #[serde(borrow, default = "default_section", skip_serializing_if = "eq_default_section")]
+    pub page_template: Cow<'p, str>,
+    /// A template to render every subsection with (unless it specifies another template).
+    #[serde(borrow, default = "def_section", skip_serializing_if = "eq_def_sect")]
     #[ramhorns(skip)]
-    section_template: Cow<'p, str>,
-    #[serde(borrow, default = "default_gallery", skip_serializing_if = "eq_default_gallery")]
+    pub section_template: Cow<'p, str>,
+    /// A template to render the gallery pictures with.
+    #[serde(borrow, default = "def_gallery", skip_serializing_if = "eq_def_gall")]
     #[ramhorns(skip)]
-    gallery_template: Cow<'p, str>,
+    pub gallery_template: Cow<'p, str>,
+    /// A number of pages to paginate by, if this number is exceeded.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ramhorns(skip)]
-    paginate_by: Option<NonZeroUsize>,
+    pub paginate_by: Option<NonZeroUsize>,
+    /// An image representing the page.
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    image: Cow<'p, str>,
+    pub image: Cow<'p, str>,
+    /// A brief summary of the page content.
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    summary: Cow<'p, str>,
+    pub summary: Cow<'p, str>,
+    /// The main content of the page.
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     #[md]
-    content: Cow<'p, str>,
+    pub content: Cow<'p, str>,
 
-    pub(crate) date: Option<DateTime>,
+    /// Date when the page was created.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date: Option<DateTime>,
 
+    /// Whether to sort subpages and subsetions by their provided weight.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     #[ramhorns(skip)]
-    sort_by_weight: bool,
-    #[serde(skip)]
-    is_section: bool,
+    pub sort_by_weight: bool,
+    /// Is this page a section?
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    hidden: bool,
+    pub is_section: bool,
+    /// Hide the page from the list of its parent's subpages or subsections.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
 
     #[serde(skip, default = "default_range")]
     #[ramhorns(skip)]
@@ -87,16 +106,23 @@ pub struct Page<'p> {
     next: usize,
     /// Priority of this page in the sitemap
     #[serde(skip, default = "default_priority")]
-    priority: f32,
+    pub priority: f32,
 
-    #[serde(default, skip_serializing_if = "is_cow_empty")]
+    /// A list of pictures associated with this page.
+    #[serde(default, skip_serializing_if = "is_slice_empty")]
     #[ramhorns(skip)]
-    pictures: Cow<'p, [Picture<'p>]>,
+    pub pictures: Box<[Picture<'p>]>,
 
+    /// A map of lists to classify this page with.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub(crate) taxonomies: Taxonomies<'p>,
+    pub taxonomies: Taxonomies<'p>,
+    /// Any "key = value" of any type can be used here for templates.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    extra: HashMap<&'p str, Any<'p>>,
+    pub extra: HashMap<&'p str, Any<'p>>,
+    /// A list of plugins to use to transform the content of this page.
+    #[serde(default, skip_serializing_if = "is_slice_empty")]
+    #[ramhorns(skip)]
+    pub plugins: Box<[&'p str]>,
 
     /// A unique number to determine whether this is the active page
     #[serde(skip)]
@@ -104,24 +130,35 @@ pub struct Page<'p> {
     id: usize,
 }
 
+/// A list of pages properly sorted and linked within. It dereferences to `[Page]`.
+#[derive(Serialize)]
+#[serde(transparent)]
+pub struct Pages<'p>(Box<[Page<'p>]>);
+
+/// A single picture on a page.
 #[derive(Clone, Content, Deserialize, Serialize)]
-pub(crate) struct Picture<'p> {
+pub struct Picture<'p> {
+    /// An alternative text displayed when the image can't be loaded of for accessibility.
     #[serde(borrow, default)]
-    alt: Cow<'p, str>,
+    pub alt: Cow<'p, str>,
+    /// An associated caption of the picture.
     #[serde(borrow, default)]
-    caption: Cow<'p, str>,
+    pub caption: Cow<'p, str>,
+    /// File name of the image.
     #[serde(borrow)]
-    file: Cow<'p, str>,
+    pub file: Cow<'p, str>,
+    /// Id string of the picture, used for the generated URL in the gallery page.
     #[serde(borrow)]
-    pid: Cow<'p, str>,
-    taken: Option<DateTime>,
+    pub pid: Cow<'p, str>,
+    /// Date and time of when the image was taken.
+    pub taken: Option<DateTime>,
 }
 
 /// Page bundled with references to its subpages and subsections for rendering
 #[derive(Clone, Content)]
 pub(crate) struct PageRef<'p, 'r> {
-    pages: Pages<'p, 'r>,
-    subsections: Pages<'p, 'r>,
+    pages: PageList<'p, 'r>,
+    subsections: PageList<'p, 'r>,
     pictures: Pictures<'p, 'r>,
     permalink: Permalink<'p, 'r>,
     active: bool,
@@ -132,8 +169,8 @@ pub(crate) struct PageRef<'p, 'r> {
 /// Page bundled with the context of the whole site for rendering
 #[derive(Clone, Content)]
 struct PageContext<'p, 'r> {
-    pages: Pages<'p, 'r>,
-    subsections: Pages<'p, 'r>,
+    pages: PageList<'p, 'r>,
+    subsections: PageList<'p, 'r>,
     previous: Option<PageRef<'p, 'r>>,
     next: Option<PageRef<'p, 'r>>,
     parent: PageRef<'p, 'r>,
@@ -152,7 +189,7 @@ struct PageContext<'p, 'r> {
 /// (all pages, range we are interested in, id of the active page)
 /// Uses special Content implementation to render the given range of pages in context.
 #[derive(Clone)]
-pub(crate) struct Pages<'p, 'r> {
+pub(crate) struct PageList<'p, 'r> {
     all: &'r [Page<'p>],
     range: Range<usize>,
     active: usize,
@@ -285,71 +322,12 @@ impl<'p> Page<'p> {
         Ok(page)
     }
 
-    /// Replace the page content with `content`.
-    pub fn with_content(mut self, content: Cow<'p, str>) -> Self {
-        self.content = content;
-        self
-    }
-
-    /// Appropriately sort the given vector of pages and create all the directories where
-    /// they will be rendered to.
-    #[inline]
-    pub fn prepare(mut pages: Vec<Self>, config: &Config) -> Result<Box<[Self]>, io::Error> {
-        let output_dir = Path::new(config.output_dir.as_ref());
-        for i in 0..pages.len() {
-            let page = &pages[i];
-
-            let subpages = page.pages.clone();
-            let subsections = page.subsections.clone();
-            if page.sort_by_weight {
-                pages[subpages.clone()].sort_unstable_by_key(|p| p.weight);
-                pages[subsections.clone()].sort_unstable_by_key(|p| p.weight);
-            } else {
-                pages[subpages.clone()].sort_unstable_by_key(|p| Reverse(p.date));
-                pages[subsections.clone()].sort_unstable_by_key(|p| Reverse(p.date));
-            }
-
-            for i in subpages.clone().skip(1) {
-                pages[i].previous = i - 1;
-            }
-            for i in subpages.clone().take_while(|i| *i != subpages.end - 1) {
-                pages[i].next = i + 1;
-            }
-            for i in subsections.clone().skip(1) {
-                pages[i].previous = i - 1;
-            }
-            for i in subsections
-                .clone()
-                .take_while(|i| *i != subsections.end - 1)
-            {
-                pages[i].next = i + 1;
-            }
-
-            let page = &pages[i];
-            if page.is_section || !page.pictures.is_empty() {
-                let mut path = output_dir.join(page.path.as_ref());
-                path.push(page.slug.as_ref());
-                create_dir_all(path)?;
-            }
-
-            for path in page.alternative_paths.iter() {
-                let path = output_dir.join(path);
-                create_dir_all(path)?;
-            }
-
-            // Assign a unique identifier
-            pages[i].id = i;
-        }
-
-        Ok(pages.into())
-    }
-
     /// Get a reference of the page, in context of its subpages and subsections.
     #[inline]
     pub(crate) fn by_ref<'r>(&'r self, all: &'r [Self], i: usize, url: &'r str) -> PageRef<'p, 'r> {
         PageRef {
-            pages: Pages::new(all, self.pages.clone(), i, url),
-            subsections: Pages::new(all, self.subsections.clone(), i, url),
+            pages: PageList::new(all, self.pages.clone(), i, url),
+            subsections: PageList::new(all, self.subsections.clone(), i, url),
             pictures: Pictures(&self.pictures, self, url),
             page: self,
             permalink: Permalink(self, url),
@@ -366,8 +344,8 @@ impl<'p> Page<'p> {
         classification: &'r Classification<'p, 'r>,
     ) -> PageContext<'p, 'r> {
         PageContext {
-            pages: Pages::new(all, self.pages.clone(), self.id, &site.url),
-            subsections: Pages::new(all, self.subsections.clone(), self.id, &site.url),
+            pages: PageList::new(all, self.pages.clone(), self.id, &site.url),
+            subsections: PageList::new(all, self.subsections.clone(), self.id, &site.url),
             previous: Some(self.previous)
                 .filter(|&i| i != 0)
                 .map(|i| all[i].by_ref(all, self.id, &site.url)),
@@ -386,11 +364,30 @@ impl<'p> Page<'p> {
         }
     }
 
+    /// If the page is section, create a directory where it will be rendered to.
+    /// Also creates the directories specified in `alternative_paths`.
+    pub fn create_directory(&self, config: &Config) -> Result<(), io::Error> {
+        let output_dir = Path::new(config.output_dir.as_ref());
+
+        for path in self.alternative_paths.iter() {
+            let path = output_dir.join(path);
+            create_dir_all(path)?;
+        }
+
+        if self.is_section || !self.pictures.is_empty() {
+            let mut path = output_dir.join(self.path.as_ref());
+            path.push(self.slug.as_ref());
+            create_dir_all(path)
+        } else {
+            Ok(())
+        }
+    }
+
     /// Render the page to the output directory specified by the config.
     #[inline]
     pub fn render(
         &self,
-        all: &[Self],
+        all: &Pages,
         templates: &Templates,
         config: &Config<'p>,
         classification: &Classification<'p, '_>,
@@ -419,7 +416,7 @@ impl<'p> Page<'p> {
         let by = self.paginate_by.map(NonZeroUsize::get).unwrap_or(0);
         if by > 0 && self.pages.len() > by {
             let (start, end) = (self.pages.start, self.pages.end);
-            page.render_paginated(start, end, by, &mut output, &template, rendered)?
+            page.render_paginated(start, end, by, &mut output, template, rendered)?
         } else if !self.pictures.is_empty() {
             render(template, &output, &page, rendered)?;
 
@@ -461,12 +458,179 @@ impl<'p> Page<'p> {
     }
 }
 
+impl<'p> Pages<'p> {
+    /// Appropriately sort the given vector of pages and create all the directories where
+    /// they will be rendered to.
+    /// When applied to pages from external sources, the pages will not have any content
+    /// hierarchy (subpages, subsections).
+    #[inline]
+    pub fn from_sources(mut pages: Vec<Page<'p>>) -> Self {
+        for i in 0..pages.len() {
+            let page = &pages[i];
+
+            let subpages = page.pages.clone();
+            let subsects = page.subsections.clone();
+            if page.sort_by_weight {
+                pages[subpages.clone()].sort_unstable_by_key(|p| p.weight);
+                pages[subsects.clone()].sort_unstable_by_key(|p| p.weight);
+            } else {
+                pages[subpages.clone()].sort_unstable_by_key(|p| Reverse(p.date));
+                pages[subsects.clone()].sort_unstable_by_key(|p| Reverse(p.date));
+            }
+
+            for i in subpages.clone().skip(1) {
+                pages[i].previous = i - 1;
+            }
+            for i in subpages.clone().take_while(|i| *i != subpages.end - 1) {
+                pages[i].next = i + 1;
+            }
+            for i in subsects.clone().skip(1) {
+                pages[i].previous = i - 1;
+            }
+            for i in subsects.clone().take_while(|i| *i != subsects.end - 1) {
+                pages[i].next = i + 1;
+            }
+
+            // Assign a unique identifier
+            pages[i].id = i;
+        }
+        Pages(pages.into())
+    }
+
+    /// Build up the internal hierarchical structure of pages loaded from the external source.
+    /// The vector of pages MUST be sorted before (using the `Ord` implementation of `Page`),
+    /// otherwise the hierarchy will be incomplete.
+    #[inline]
+    #[allow(clippy::needless_range_loop)]
+    pub fn from_external(mut pages: Vec<Page<'p>>) -> Self {
+        #[inline]
+        fn is_subpage(path: &str, section_path: &str, section_slug: &str) -> bool {
+            path.strip_suffix(is_separator)
+                .unwrap_or(path)
+                .strip_suffix(section_slug)
+                .and_then(|p| p.strip_prefix(section_path))
+                .filter(|s| s.chars().all(is_separator))
+                .is_some()
+        }
+
+        // Pages are sorted in a way that makes subpages and subsections adjacent
+        for i in 0..pages.len() {
+            if !pages[i].is_section {
+                continue;
+            }
+
+            let (mut found, mut subpage_found) = (false, false);
+            // subsections
+            let (mut start, mut end) = (0, 0);
+            // subpages
+            let (mut pstart, mut pend) = (0, 0);
+            for j in i + 1..pages.len() {
+                if !is_subpage(&pages[j].path.0, &pages[i].path.0, &pages[i].slug) {
+                    if !found {
+                        continue;
+                    } else {
+                        if subpage_found {
+                            pend = j;
+                        } else {
+                            end = j;
+                        }
+                        break;
+                    }
+                }
+                if !found {
+                    found = true;
+                    if !pages[j].is_section {
+                        subpage_found = true;
+                        pstart = j;
+                    } else {
+                        start = j;
+                    }
+                } else if !subpage_found && !pages[j].is_section {
+                    subpage_found = true;
+                    pstart = j;
+                    end = j;
+                }
+                pages[j].parent = i;
+            }
+
+            if end == 0 && start != 0 {
+                end = pages.len()
+            } else if pend == 0 && pstart != 0 {
+                pend = pages.len()
+            }
+
+            pages[i].subsections = start..end;
+            pages[i].pages = pstart..pend;
+            if pages[i].sort_by_weight {
+                pages[start..end].sort_unstable_by_key(|p| p.weight);
+                pages[pstart..pend].sort_unstable_by_key(|p| p.weight);
+            }
+            if end != 0 {
+                for j in start + 1..end {
+                    pages[j].previous = j - 1;
+                }
+                for j in start..end - 1 {
+                    pages[j].next = j + 1;
+                }
+            }
+            if pend != 0 {
+                for j in pstart + 1..pend {
+                    pages[j].previous = j - 1;
+                }
+                for j in pstart..pend - 1 {
+                    pages[j].next = j + 1;
+                }
+            }
+        }
+        Pages(pages.into())
+    }
+}
+
+impl<'p> Ord for Page<'p> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let mut self_paths = self.path.0.split(is_separator);
+        let mut other_paths = other.path.0.split(is_separator);
+        loop {
+            match (self_paths.next(), other_paths.next()) {
+                (Some(s1), Some(s2)) => match s1.cmp(s2) {
+                    Ordering::Less => return Ordering::Less,
+                    Ordering::Greater => return Ordering::Greater,
+                    _ => continue,
+                },
+                (None, Some(_)) => return Ordering::Less,
+                (Some(_), None) => return Ordering::Greater,
+                (None, None) => break,
+            }
+        }
+        match (self.is_section, other.is_section) {
+            (true, true) => self.slug.cmp(&other.slug),
+            (true, false) => Ordering::Less,
+            (false, true) => Ordering::Greater,
+            (false, false) => Reverse(self.date).cmp(&Reverse(other.date)),
+        }
+    }
+}
+
+impl<'p> PartialOrd for Page<'p> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'p> PartialEq for Page<'p> {
+    fn eq(&self, other: &Self) -> bool {
+        self.path.0 == other.path.0 && self.slug == other.slug && self.id == other.id
+    }
+}
+
+impl<'p> Eq for Page<'p> {}
+
 impl<'p, 'r> Paginate for PageContext<'p, 'r> {
     #[inline]
     fn paginate(&self, pages: Range<usize>, length: usize, current: usize) -> Self {
         let old = &self.pages;
         Self {
-            pages: Pages::new(old.all, pages, old.active, old.site_url),
+            pages: PageList::new(old.all, pages, old.active, old.site_url),
             pagination: Some(Pagination::new(length, current)),
             ..self.clone()
         }
@@ -500,7 +664,7 @@ impl<'p> Picture<'p> {
     }
 }
 
-impl<'p, 'r> Pages<'p, 'r> {
+impl<'p, 'r> PageList<'p, 'r> {
     pub(crate) fn new(all: &'r [Page<'p>], range: Range<usize>, id: usize, url: &'r str) -> Self {
         Self {
             all,
@@ -511,7 +675,7 @@ impl<'p, 'r> Pages<'p, 'r> {
     }
 }
 
-impl<'p, 'r> Content for Pages<'p, 'r> {
+impl<'p, 'r> Content for PageList<'p, 'r> {
     #[inline]
     fn is_truthy(&self) -> bool {
         !self.range.is_empty()
@@ -625,6 +789,20 @@ impl<'p, 'r> Content for PicturePermalink<'p, 'r> {
     }
 }
 
+impl<'p> Deref for Pages<'p> {
+    type Target = [Page<'p>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'p> DerefMut for Pages<'p> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 #[inline]
 const fn default_priority() -> f32 {
     0.5
@@ -636,32 +814,32 @@ const fn default_range() -> Range<usize> {
 }
 
 #[inline]
-const fn default_gallery() -> Cow<'static, str> {
+const fn def_gallery() -> Cow<'static, str> {
     Cow::const_str("gallery.html")
 }
 
 #[inline]
-const fn default_page() -> Cow<'static, str> {
+const fn def_page() -> Cow<'static, str> {
     Cow::const_str("page.html")
 }
 
 #[inline]
-const fn default_section() -> Cow<'static, str> {
+const fn def_section() -> Cow<'static, str> {
     Cow::const_str("section.html")
 }
 
 #[inline]
-fn eq_default_gallery(c: &str) -> bool {
+fn eq_def_gall(c: &str) -> bool {
     c == "gallery.html"
 }
 
 #[inline]
-fn eq_default_page(c: &str) -> bool {
+fn eq_def_page(c: &str) -> bool {
     c == "page.html"
 }
 
 #[inline]
-fn eq_default_section(c: &str) -> bool {
+fn eq_def_sect(c: &str) -> bool {
     c == "section.html"
 }
 
@@ -671,7 +849,7 @@ const fn equal_zero(i: &i64) -> bool {
 }
 
 #[inline]
-fn is_cow_empty<T: Clone>(s: &Cow<[T]>) -> bool {
+fn is_slice_empty<T>(s: &[T]) -> bool {
     s.is_empty()
 }
 

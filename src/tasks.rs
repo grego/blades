@@ -7,7 +7,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
 use crate::config::{Config, ASSET_SRC_DIR};
-use crate::page::{Page, Pages};
+use crate::page::{Page, PageList};
 use crate::taxonomies::{Classification, TaxonList};
 use crate::types::{DateTime, MutSet};
 
@@ -39,7 +39,7 @@ where
 #[derive(Content)]
 struct Meta<'p, 'r>(
     #[ramhorns(rename = "date")] DateTime,
-    #[ramhorns(rename = "pages")] Pages<'p, 'r>,
+    #[ramhorns(rename = "pages")] PageList<'p, 'r>,
     #[ramhorns(rename = "taxons")] TaxonList<'p, 'r>,
     #[ramhorns(rename = "site")] &'r Config<'p>,
 );
@@ -64,7 +64,7 @@ pub fn render_meta<'p>(
     config: &Config<'p>,
     rendered: &MutSet,
 ) -> Result<(), ramhorns::Error> {
-    let pages = Pages::new(pages, 0..pages.len(), 0, &config.url);
+    let pages = PageList::new(pages, 0..pages.len(), 0, &config.url);
     let meta = Meta(DateTime::now(), pages, TaxonList(taxons), config);
     let path = Path::new(config.output_dir.as_ref());
 

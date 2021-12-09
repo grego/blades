@@ -21,7 +21,7 @@ use std::time::SystemTime;
 pub trait Parser: Default + Sized {
     /// The error that can happen during parsing.
     type Error: std::error::Error;
-    
+
     /// The kind of parser that should be used, based on the file extension.
     fn from_extension(_extension: &OsStr) -> Option<Self> {
         Some(Self::default())
@@ -140,8 +140,7 @@ impl<P: Parser> Sources<P> {
             let mid = start + read;
             let path = path.to_string_lossy();
             let ext_start = path.rfind('.').unwrap_or_else(|| path.len());
-            self.data
-                .extend_from_slice(path[..ext_start].as_ref());
+            self.data.extend_from_slice(path[..ext_start].as_ref());
             let end = self.data.len();
             self.sources
                 .push(Source::new(mid..end, start..mid, index, date, format));

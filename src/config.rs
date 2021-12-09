@@ -12,6 +12,7 @@ use crate::types::{Any, HashMap};
 use beef::lean::Cow;
 use ramhorns::Content;
 use serde::{Deserialize, Serialize};
+use serde_cmd::CmdBorrowed;
 
 // These are pre-defined since the life is easier when they are the same for every theme.
 pub(crate) static TEMPLATE_DIR: &str = "templates";
@@ -68,6 +69,11 @@ pub struct Config<'c> {
     #[ramhorns(skip)]
     pub(crate) taxonomies: HashMap<&'c str, TaxonMeta<'c>>,
     extra: Option<HashMap<&'c str, Any<'c>>>,
+
+    /// Configuration of plugins for building the site.
+    #[serde(default, skip_serializing)]
+    #[ramhorns(skip)]
+    pub plugins: Plugins<'c>,
 }
 
 #[derive(Clone, Content, Default, Deserialize, Serialize)]
@@ -80,6 +86,27 @@ struct Author<'a> {
     uri: Cow<'a, str>,
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     avatar: Cow<'a, str>,
+}
+
+/// Plugins to use when building the site.
+#[derive(Clone, Default, Deserialize)]
+pub struct Plugins<'p> {
+    /// Plugins to get the input from, in the form of serialized list of pages.
+    #[serde(borrow, default)]
+    pub input: Box<[CmdBorrowed<'p>]>,
+    /// Plugins that transform the serialized list of pages.
+    #[serde(borrow, default)]
+    pub transform: Box<[CmdBorrowed<'p>]>,
+    /// Plugins that get the serialized list of pages and might do something with it.
+    #[serde(borrow, default)]
+    pub output: Box<[CmdBorrowed<'p>]>,
+    /// Plugins that transform the content of pages.
+    /// They are identified by their name and must be enabled for each page.
+    #[serde(borrow, default)]
+    pub content: HashMap<&'p str, CmdBorrowed<'p>>,
+    /// A list of names of content plugins that should be applied to every page.
+    #[serde(default)]
+    pub default: Box<[&'p str]>,
 }
 
 #[inline]

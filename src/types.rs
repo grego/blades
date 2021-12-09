@@ -30,16 +30,16 @@ pub struct Templates {
     theme: Option<Ramhorns>,
 }
 
-/// A wrapper around the `choron::NaiveDateTime`, used for rendering of dates.
+/// A wrapper around the `chrono::NaiveDateTime`, used for rendering of dates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 #[serde(transparent)]
-pub struct DateTime(NaiveDateTime);
+pub struct DateTime(pub NaiveDateTime);
 
 /// A wrapper around a `str` representing path, used to derive `Content` implementation
 /// that acts like an iterator over the path segmets.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(transparent)]
-pub(crate) struct Ancestors<'a>(#[serde(borrow)] pub(crate) Cow<'a, str>);
+pub struct Ancestors<'a>(#[serde(borrow)] pub Cow<'a, str>);
 
 /// One segment of a path.
 #[derive(Content)]
@@ -55,11 +55,16 @@ struct Segment<'a>(
 /// A sum of all the types that can be used in a TOML file.
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
-pub(crate) enum Any<'a> {
+pub enum Any<'a> {
+    /// A string.
     String(#[serde(borrow)] Cow<'a, str>),
+    /// A number.
     Number(f64),
+    /// Date and time data.
     DateTime(DateTime),
+    /// A list.
     List(Vec<Any<'a>>),
+    /// A key-value map.
     Map(HashMap<&'a str, Any<'a>>),
 }
 
@@ -283,6 +288,7 @@ impl<'a> Content for Any<'a> {
 }
 
 impl DateTime {
+    /// The date and time right now.
     pub fn now() -> Self {
         SystemTime::now().into()
     }
@@ -359,7 +365,6 @@ impl Content for DateTime {
 // Toml crate currently doesn't supprot deserializing dates into types other than String,
 // so an ugly hack based on its `Deserializer` private fields needs to be used.
 const FIELD: &str = "$__toml_private_datetime";
-const NAME: &str = "$__toml_private_Datetime";
 
 impl<'de> Deserialize<'de> for DateTime {
     fn deserialize<D>(deserializer: D) -> Result<DateTime, D::Error>
@@ -431,8 +436,7 @@ impl<'de> Deserialize<'de> for DateTime {
             }
         }
 
-        static FIELDS: [&str; 1] = [FIELD];
-        deserializer.deserialize_struct(NAME, &FIELDS, DateTimeVisitor)
+        deserializer.deserialize_str(DateTimeVisitor)
     }
 }
 

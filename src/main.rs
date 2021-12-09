@@ -16,7 +16,7 @@ use std::ffi::OsStr;
 use std::fs::{create_dir_all, read_to_string, write};
 use std::io::{stdin, stdout, BufRead, BufReader, Lines, Write};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Output, Stdio};
 use std::time::Instant;
 use structopt::StructOpt;
 use thiserror::Error;
@@ -88,11 +88,35 @@ enum Error {
     Ramhorns(#[from] ramhorns::Error),
     #[error("Error parsing {1}: {0}")]
     Parse(ParseError, Box<str>),
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("Error in plugin {0}: {1}")]
+    Plugin(Box<str>, Box<str>),
+    #[error("Plugin {0} returned invalid UTF8 data: {1}")]
+    Utf8(Box<str>, std::string::FromUtf8Error),
 }
 
 impl From<(ParseError, Box<str>)> for Error {
     fn from((e, s): (ParseError, Box<str>)) -> Self {
         Self::Parse(e, s)
+    }
+}
+
+/// A helper trait to simplify the command logic.
+trait OutputResult {
+    fn output_result(self, name: &str) -> Result<Vec<u8>, Error>;
+}
+
+impl OutputResult for Output {
+    fn output_result(self, name: &str) -> Result<Vec<u8>, Error> {
+        if self.status.success() {
+            Ok(self.stdout)
+        } else {
+            Err(Error::Plugin(
+                name.into(),
+                String::from_utf8_lossy(&self.stderr).into(),
+            ))
+        }
     }
 }
 
@@ -122,8 +146,10 @@ impl Parser for Format {
             Format::Toml => toml::from_slice(data)?,
             Format::Markdown => {
                 let (header, content) = separate_md_header(data);
-                let page: Page = toml::from_slice(header)?;
-                std::str::from_utf8(content).map(|s| page.with_content(s.trim().into()))?
+                let mut page: Page = toml::from_slice(header)?;
+                let content = std::str::from_utf8(content)?;
+                page.content = content.trim().into();
+                page
             }
         })
     }
@@ -245,12 +271,94 @@ fn build(config: &Config) -> Result<(), Error> {
                 .par_iter()
                 .map(|src| Page::new(src, &sources, config))
                 .collect::<Result<Vec<_>, _>>()?;
-            Page::prepare(pages, config).map_err(Into::into)
+
+            Ok(pages)
         },
     );
     let (templates, pages) = (templates?, pages?);
 
-    let taxonomies = Taxonomy::classify(&pages, config);
+    // Input plugins
+    let inputs = config
+        .plugins
+        .input
+        .par_iter()
+        .map(|cmd| cmd.make_command().output()?.output_result(&cmd.path))
+        .collect::<Result<Vec<_>, _>>()?;
+    let input_pages = inputs
+        .par_iter()
+        .map(|input| serde_json::from_slice(input))
+        .collect::<Result<Vec<Vec<Page>>, _>>()?;
+    let mut pages = pages;
+    pages.extend(input_pages.into_iter().flat_map(|ip| ip.into_iter()));
+
+    // Transform plugins
+    let mut transformed: Option<Vec<u8>> = None;
+    for cmd in config.plugins.transform.iter() {
+        let mut child = cmd
+            .make_command()
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = child.stdin.take().expect("Failed to open child stdin");
+        if let Some(ref source) = transformed {
+            stdin.write_all(source)?;
+        } else {
+            serde_json::to_writer(&stdin, &pages)?;
+        }
+        drop(stdin);
+        let output = child.wait_with_output()?.output_result(&cmd.path)?;
+        transformed = Some(output);
+    }
+    let mut pages = pages;
+    if let Some(ref source) = transformed {
+        pages = serde_json::from_slice(source)?;
+    }
+
+    // Content plugins
+    if !config.plugins.content.is_empty() {
+        pages.par_iter_mut().try_for_each(|page| {
+            let mut output: Option<String> = None;
+            for &cmd in config.plugins.default.iter().chain(page.plugins.iter()) {
+                let mut child = config.plugins.content[cmd]
+                    .make_command()
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()?;
+                let mut stdin = child.stdin.take().expect("Failed to open child stdin");
+                if let Some(ref out) = output {
+                    stdin.write_all(out.as_ref())?;
+                } else {
+                    stdin.write_all(page.content.as_ref().as_ref())?;
+                }
+                drop(stdin);
+                let out = child.wait_with_output()?.output_result(cmd)?;
+                output = Some(String::from_utf8(out).map_err(|e| Error::Utf8(cmd.into(), e))?);
+            }
+            if let Some(out) = output {
+                page.content = out.into();
+            }
+            Ok::<_, Error>(())
+        })?;
+    }
+
+    let pages = if !inputs.is_empty() || transformed.is_some() {
+        pages.par_sort_unstable();
+        Pages::from_external(pages)
+    } else {
+        Pages::from_sources(pages)
+    };
+
+    let (taxonomies, res) = rayon::join(
+        || Taxonomy::classify(&pages, config),
+        || {
+            pages
+                .par_iter()
+                .try_for_each(|page| page.create_directory(config))
+        },
+    );
+    res?;
 
     let rendered = MutSet::default();
     let (res_l, res_r) = rayon::join(
@@ -271,7 +379,25 @@ fn build(config: &Config) -> Result<(), Error> {
     );
     res_l?;
     res_r?;
-    cleanup(rendered, FILELIST).map_err(Into::into)
+
+    cleanup(rendered, FILELIST)?;
+
+    // Output plugins
+    if !config.plugins.output.is_empty() {
+        let pagedata = serde_json::to_string(&pages)?;
+        config.plugins.output.par_iter().try_for_each(|cmd| {
+            let mut child = cmd
+                .make_command()
+                .stdin(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()?;
+            let mut stdin = child.stdin.take().expect("Failed to open child stdin");
+            stdin.write_all(pagedata.as_ref())?;
+            drop(stdin);
+            child.wait_with_output()?.output_result(&cmd.path).map(drop)
+        })?;
+    }
+    Ok(())
 }
 
 fn main() {

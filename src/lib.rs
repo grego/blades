@@ -24,8 +24,8 @@ mod taxonomies;
 mod types;
 
 pub use config::Config;
-pub use page::Page;
+pub use page::{Page, Pages, Picture};
 pub use sources::{Parser, Source, Sources};
 pub use tasks::{cleanup, colocate_assets, render_meta};
-pub use taxonomies::Taxonomy;
-pub use types::{MutSet, Templates};
+pub use taxonomies::{Taxonomies, Taxonomy};
+pub use types::{Ancestors, Any, DateTime, MutSet, Templates};

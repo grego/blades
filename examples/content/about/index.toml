@@ -1,8 +1,5 @@
 title = "About"
+plugins = ["erase"]
 content = """
 Tuvan throat singing, Khoomei, is one particular variant of overtone singing practiced by people in Tuva and Siberia. In 2009, it was inscribed on the Representative List of the Intangible Cultural Heritage of Humanity of UNESCO.
-
-In Tuvan throat singing, the performer produces a fundamental pitch and—simultaneously—one or more pitches over that. The history of Tuvan throat singing reaches far back. Many male herders can throat sing, but women are beginning to practice the technique as well. The popularity of throat singing among Tuvans seems to have arisen as a result of geographic location and culture. The open landscape of Tuva allows for the sounds to carry a great distance. Ethnomusicologists studying throat singing in these areas mark khoomei as an integral part in the ancient pastoral animism still practiced today. Often, singers travel far into the countryside looking for the right river, or go up to the steppes of the mountainside to create the proper environment for throat-singing.
-
-The animistic world view of this region identifies the spirituality of objects in nature, not just in their shape or location, but in their sound as well. Thus, human mimicry of nature's sounds is seen as the root of throat singing. An example of this is the Tuvan story of the waterfall above the Buyant Göl (Deer River in Tuvan), where mysterious harmonic sounds are said to have attracted deer to bask in the waters, and where it is said harmonic sounds were first revealed to people. Indeed, the cultures in this part of Asia have developed many instruments and techniques to mimic the sounds of animals, wind, and water. While the cultures of this region share throat singing, their styles vary in breadth of development.
 """

@@ -3,6 +3,10 @@ description = "It does nothing"
 image = "img/main.jpg"
 theme = "casper"
 
-content_dir = "examples/content"
-theme_dir = "examples/themes"
-output_dir = "examples/public"
+[plugins]
+input = ["cat input.json"]
+transform = ["../target/release/examples/transform_plugin"]
+output = ["dd status=none of=pages.json"]
+
+[plugins.content]
+erase = "echo \"hahaha erased\""

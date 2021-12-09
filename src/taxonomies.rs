@@ -7,7 +7,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
 use crate::config::Config;
-use crate::page::{Page, PageRef, Paginate, Pagination, Permalink};
+use crate::page::{Page, PageRef, Pages, Paginate, Pagination, Permalink};
 use crate::tasks::render;
 use crate::types::{HashMap, MutSet, Templates};
 
@@ -26,17 +26,17 @@ use std::path::Path;
 const DEFAULT_TEMPLATE: &str = "taxonomy.html";
 const DEFAULT_KEY_TEMPLATE: &str = "taxonomy_key.html";
 
-/// One class this page is a species of.
+/// One class a page is a species of.
 #[derive(Clone, Content, Deserialize, Serialize)]
 #[serde(transparent)]
-pub(crate) struct Species<'s>(
+pub struct Species<'s>(
     #[ramhorns(rename = "name")]
     #[serde(borrow)]
     Cow<'s, str>,
 );
 
 /// All the classes in all taxonomies one page belongs to.
-pub(crate) type Taxonomies<'p> = HashMap<&'p str, ArrayVec<Species<'p>, 6>>;
+pub type Taxonomies<'p> = HashMap<&'p str, ArrayVec<Species<'p>, 6>>;
 
 /// Classification of all pages on the site.
 pub type Classification<'t, 'r> = HashMap<&'r str, Taxonomy<'t, 'r>>;
@@ -156,13 +156,14 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
 
     /// Classify the given pages into taxonomies specified by the config.
     #[inline]
-    pub fn classify(pages: &'r [Page<'t>], config: &'r Config<'t>) -> Classification<'t, 'r> {
+    pub fn classify(pages: &'r Pages<'t>, config: &'r Config<'t>) -> Classification<'t, 'r> {
         let mut named: Classification = config
             .taxonomies
             .iter()
             .map(|(&key, tax)| (key, Taxonomy::new(key, tax)))
             .collect();
 
+        let pages: &[Page] = &*pages;
         for page in pages {
             for (class, family) in &page.taxonomies {
                 if let Some(taxon) = named.get_mut(class) {
@@ -214,7 +215,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         &self,
         config: &Config<'t>,
         classification: &Classification<'t, '_>,
-        all: &[Page<'t>],
+        all: &Pages<'t>,
         templates: &Templates,
         rendered: &MutSet,
     ) -> Result<(), ramhorns::Error> {
@@ -239,7 +240,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         (title, pages): (&str, &[PageLinked<'t, '_>]),
         config: &Config<'t>,
         classification: &Classification<'t, '_>,
-        all: &[Page<'t>],
+        all: &Pages<'t>,
         templates: &Templates,
         rendered: &MutSet,
     ) -> Result<(), ramhorns::Error> {
