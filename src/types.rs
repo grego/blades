@@ -6,29 +6,21 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-use crate::config::{Config, TEMPLATE_DIR};
-
 use beef::lean::Cow;
 use chrono::{DateTime as CDateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, Timelike};
 use ramhorns::encoding::Encoder;
 use ramhorns::traits::ContentSequence;
-use ramhorns::{Content, Ramhorns, Section, Template};
+use ramhorns::{Content, Section};
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 
 use std::collections::HashSet;
 use std::fmt;
-use std::path::{is_separator, Path, PathBuf};
+use std::path::{is_separator, PathBuf};
 use std::time::SystemTime;
 
 pub(crate) type HashMap<K, V> = std::collections::HashMap<K, V, ahash::RandomState>;
 /// A set of all rendered paths. Behind a mutex, so it can be written from multiple threads.
 pub type MutSet<T = PathBuf> = parking_lot::Mutex<HashSet<T, ahash::RandomState>>;
-
-/// Aggregation of all the templets of the site's theme and its template dir.
-pub struct Templates {
-    templates: Option<Ramhorns>,
-    theme: Option<Ramhorns>,
-}
 
 /// A wrapper around the `chrono::NaiveDateTime`, used for rendering of dates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
@@ -66,42 +58,6 @@ pub enum Any<'a> {
     List(Vec<Any<'a>>),
     /// A key-value map.
     Map(HashMap<&'a str, Any<'a>>),
-}
-
-impl Templates {
-    /// Load the templates from the directories specified by the config.
-    #[inline]
-    pub fn load(config: &Config) -> Result<Self, ramhorns::Error> {
-        Ok(Self {
-            templates: if Path::new(TEMPLATE_DIR).exists() {
-                Some(Ramhorns::from_folder(TEMPLATE_DIR)?)
-            } else {
-                None
-            },
-            theme: if !config.theme.is_empty() {
-                let mut theme_path =
-                    Path::new(config.theme_dir.as_ref()).join(config.theme.as_ref());
-                theme_path.push(TEMPLATE_DIR);
-                if theme_path.exists() {
-                    Some(Ramhorns::from_folder(theme_path)?)
-                } else {
-                    None
-                }
-            } else {
-                None
-            },
-        })
-    }
-
-    /// Get one template with the given name or return an error.
-    #[inline]
-    pub fn get(&self, name: &str) -> Result<&Template<'static>, ramhorns::Error> {
-        self.templates
-            .as_ref()
-            .and_then(|t| t.get(name))
-            .or_else(|| self.theme.as_ref().and_then(|t| t.get(name)))
-            .ok_or_else(|| ramhorns::Error::NotFound(name.into()))
-    }
 }
 
 impl<'a> Content for Ancestors<'a> {

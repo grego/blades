@@ -10,10 +10,12 @@ use crate::config::Config;
 use crate::sources::{Parser, Source, Sources};
 use crate::tasks::render;
 use crate::taxonomies::{Classification, Taxonomies};
-use crate::types::{Ancestors, Any, DateTime, HashMap, MutSet, Templates};
+use crate::types::{Ancestors, Any, DateTime, HashMap, MutSet};
 
 use beef::lean::Cow;
-use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Section, Template};
+use ramhorns::{
+    encoding::Encoder, traits::ContentSequence, Content, Error, Ramhorns, Section, Template,
+};
 use serde::{Deserialize, Serialize};
 
 use std::cmp::{min, Ordering, Reverse};
@@ -257,7 +259,7 @@ pub(crate) trait Paginate: Content + Sized {
         path: &mut PathBuf,
         tpl: &Template,
         rendered: &MutSet,
-    ) -> Result<(), ramhorns::Error> {
+    ) -> Result<(), Error> {
         let count = last - first;
         let by = min(by, count);
         let len = count / by + ((count % by != 0) as usize);
@@ -388,11 +390,11 @@ impl<'p> Page<'p> {
     pub fn render(
         &self,
         all: &Pages,
-        templates: &Templates,
+        templates: &Ramhorns,
         config: &Config<'p>,
         classification: &Classification<'p, '_>,
         rendered: &MutSet,
-    ) -> Result<(), ramhorns::Error> {
+    ) -> Result<(), Error> {
         let output_dir = Path::new(config.output_dir.as_ref());
         let mut output = output_dir.join(self.path.as_ref());
         output.push(self.slug.as_ref());
@@ -410,7 +412,9 @@ impl<'p> Page<'p> {
         } else {
             &self.template
         };
-        let template = templates.get(template)?;
+        let template = templates
+            .get(template)
+            .ok_or_else(|| Error::NotFound(template.as_ref().into()))?;
 
         let page = self.in_context(all, config, classification);
         let by = self.paginate_by.map(NonZeroUsize::get).unwrap_or(0);
@@ -426,7 +430,10 @@ impl<'p> Page<'p> {
                 output.set_extension("");
             };
 
-            let template = templates.get(&self.gallery_template)?;
+            let template = templates
+                .get(&self.gallery_template)
+                .ok_or_else(|| Error::NotFound(self.gallery_template.as_ref().into()))?;
+
             // Make gallery circular, with the last photo referencing the first and vice-versa
             let pictures = &self.pictures;
             let last = pictures.len() - 1;

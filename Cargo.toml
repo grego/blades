@@ -12,7 +12,7 @@ readme = "README.md"
 homepage = "https://www.getblades.org"
 
 [dependencies]
-ramhorns = "0.12"
+ramhorns = { git = "https://github.com/grego/ramhorns", branch = "extend-templates" }
 arrayvec = { version = "0.7.1", features = ["serde"] }
 beef = { version = "0.5", features = ["impl_serde"]}
 serde = { version = "1.0.126", features = ["derive"] }

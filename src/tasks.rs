@@ -6,7 +6,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-use crate::config::{Config, ASSET_SRC_DIR};
+use crate::config::{Config, ASSET_SRC_DIR, TEMPLATE_DIR};
 use crate::page::{Page, PageList};
 use crate::taxonomies::{Classification, TaxonList};
 use crate::types::{DateTime, MutSet};
@@ -15,7 +15,22 @@ use std::fs::{copy, create_dir_all, read_dir, remove_dir_all, remove_file, File}
 use std::io::{self, BufRead, BufReader, BufWriter, ErrorKind, Write};
 use std::path::{is_separator, Path, PathBuf};
 
-use ramhorns::{Content, Template};
+use ramhorns::{Content, Ramhorns, Template};
+
+/// Load the templates from the directories specified by the config.
+#[inline]
+pub fn load_templates(config: &Config) -> Result<Ramhorns, ramhorns::Error> {
+    create_dir_all(TEMPLATE_DIR)?;
+    let mut templates = Ramhorns::from_folder(TEMPLATE_DIR)?;
+    if !config.theme.is_empty() {
+        let mut theme_path = Path::new(config.theme_dir.as_ref()).join(config.theme.as_ref());
+        theme_path.push(TEMPLATE_DIR);
+        if theme_path.exists() {
+            templates.extend_from_folder(theme_path)?;
+        }
+    }
+    Ok(templates)
+}
 
 #[inline]
 pub(crate) fn render<P, C>(

@@ -9,11 +9,11 @@
 use crate::config::Config;
 use crate::page::{Page, PageRef, Pages, Paginate, Pagination, Permalink};
 use crate::tasks::render;
-use crate::types::{HashMap, MutSet, Templates};
+use crate::types::{HashMap, MutSet};
 
 use arrayvec::ArrayVec;
 use beef::lean::Cow;
-use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Section};
+use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Error, Ramhorns, Section};
 use serde::{Deserialize, Serialize};
 
 use std::cmp::Reverse;
@@ -216,9 +216,9 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         config: &Config<'t>,
         classification: &Classification<'t, '_>,
         all: &Pages<'t>,
-        templates: &Templates,
+        templates: &Ramhorns,
         rendered: &MutSet,
-    ) -> Result<(), ramhorns::Error> {
+    ) -> Result<(), Error> {
         let mut path = Path::new(config.output_dir.as_ref()).join(self.slug);
         create_dir_all(&path)?;
         path.push("index.html");
@@ -229,7 +229,9 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
             index: all[0].by_ref(all, usize::MAX, &config.url),
             classification,
         };
-        let template = templates.get(&self.taxonomy.template)?;
+        let template = templates
+            .get(&self.taxonomy.template)
+            .ok_or_else(|| Error::NotFound(self.taxonomy.template.as_ref().into()))?;
         render(template, path, &contexted, rendered)
     }
 
@@ -241,9 +243,9 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         config: &Config<'t>,
         classification: &Classification<'t, '_>,
         all: &Pages<'t>,
-        templates: &Templates,
+        templates: &Ramhorns,
         rendered: &MutSet,
-    ) -> Result<(), ramhorns::Error> {
+    ) -> Result<(), Error> {
         let mut output = Path::new(config.output_dir.as_ref()).join(self.slug);
         output.push(title);
         create_dir_all(&output)?;
@@ -264,11 +266,13 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
             .paginate_by
             .map(NonZeroUsize::get)
             .unwrap_or(0);
-        let key_template = templates.get(&self.taxonomy.key_template)?;
+        let template = templates
+            .get(&self.taxonomy.key_template)
+            .ok_or_else(|| Error::NotFound(self.taxonomy.key_template.as_ref().into()))?;
         if by > 0 && pages.len() > by {
-            contexted.render_paginated(0, pages.len(), by, &mut output, key_template, rendered)
+            contexted.render_paginated(0, pages.len(), by, &mut output, template, rendered)
         } else {
-            render(key_template, output, &contexted, rendered)
+            render(template, output, &contexted, rendered)
         }
     }
 }

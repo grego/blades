@@ -264,7 +264,7 @@ fn new_page(config: &Config) -> Result<(), Error> {
 fn build(config: &Config) -> Result<(), Error> {
     let sources: Sources<Format> = Sources::load(config)?;
     let (templates, pages) = rayon::join(
-        || Templates::load(config),
+        || load_templates(config),
         || -> Result<_, Error> {
             let pages = sources
                 .sources()

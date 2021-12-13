@@ -65,7 +65,7 @@ checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
 name = "blades"
-version = "0.3.0"
+version = "0.3.0-alpha"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -415,8 +415,7 @@ dependencies = [
 [[package]]
 name = "ramhorns"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48b5bc84254cfe71ba5d7220154db9b28d3f2cb02b0ccbf0feb7a9f6f3a5f8f9"
+source = "git+https://github.com/grego/ramhorns?branch=extend-templates#e6bc018ef1b21cceaaf0abc29be90e2ec6e5eed1"
 dependencies = [
  "ahash",
  "arrayvec",
