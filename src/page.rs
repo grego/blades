@@ -73,7 +73,7 @@ pub struct Page<'p> {
     pub summary: Cow<'p, str>,
     /// The main content of the page.
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    #[md]
+    #[ramhorns(callback = render_content)]
     pub content: Cow<'p, str>,
 
     /// Date when the page was created.
@@ -680,6 +680,13 @@ impl<'p, 'r> PageList<'p, 'r> {
             site_url: url,
         }
     }
+}
+
+#[inline]
+pub(crate) fn render_content<E: Encoder>(source: &str, encoder: &mut E) -> Result<(), E::Error> {
+    let parser = pulldown_cmark::Parser::new_ext(source, pulldown_cmark::Options::all());
+    let processed = cmark_syntax::SyntaxPreprocessor::new(parser);
+    encoder.write_html(processed)
 }
 
 impl<'p, 'r> Content for PageList<'p, 'r> {

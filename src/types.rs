@@ -145,7 +145,7 @@ impl<'a> Content for Any<'a> {
     #[inline]
     fn render_escaped<E: Encoder>(&self, encoder: &mut E) -> Result<(), E::Error> {
         match self {
-            Any::String(s) => s.render_cmark(encoder),
+            Any::String(ref s) => crate::page::render_content(s, encoder),
             Any::Number(n) => n.render_escaped(encoder),
             Any::DateTime(dt) => dt.render_escaped(encoder),
             Any::List(vec) => vec.render_escaped(encoder),

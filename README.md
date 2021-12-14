@@ -28,8 +28,11 @@ to let you focus on your content.
 ## Features
 * Powerful plugin system
 * Themes
-* Customisable taxonomies (like categories or tags)
 * Image gallery generation
+* [CommonMark](https://commonmark.org) markdown with tables and footnotes for content
+* Automatic syntax highlighting using [cmark-syntax](https://github.com/grego/cmark-syntax)
+  (with a possibility of turning LaTeX formulas into [MathML](https://developer.mozilla.org/docs/Web/MathML)
+* Customisable taxonomies (like categories or tags)
 * Pagination
 * Breadcrumbs
 * Asset colocation
