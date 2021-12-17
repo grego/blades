@@ -119,7 +119,8 @@ pub struct Page<'p> {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub taxonomies: Taxonomies<'p>,
     /// Any "key = value" of any type can be used here for templates.
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(default, flatten, skip_serializing_if = "HashMap::is_empty")]
+    #[ramhorns(flatten)]
     pub extra: HashMap<&'p str, Any<'p>>,
     /// A list of plugins to use to transform the content of this page.
     #[serde(default, skip_serializing_if = "is_slice_empty")]

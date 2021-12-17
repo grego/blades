@@ -68,7 +68,9 @@ pub struct Config<'c> {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     #[ramhorns(skip)]
     pub(crate) taxonomies: HashMap<&'c str, TaxonMeta<'c>>,
-    extra: Option<HashMap<&'c str, Any<'c>>>,
+    #[serde(default, flatten, skip_serializing_if = "HashMap::is_empty")]
+    #[ramhorns(flatten)]
+    extra: HashMap<&'c str, Any<'c>>,
 
     /// Configuration of plugins for building the site.
     #[serde(default, skip_serializing)]

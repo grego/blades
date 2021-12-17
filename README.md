@@ -86,8 +86,7 @@ Example plugin configuration can be found in [examples](examples/Blades.toml), a
 example toy [transform plugin](examples/transform_plugin.rs).
 To try it, first downolad the [Casper](https://blades-casper.netlify.app/) theme as a submodule
 ```bash
-git submodule init
-git submodule update
+git submodule update --init
 ```
 Then build the plugin:
 ```bash

@@ -133,9 +133,9 @@ dependencies = [
 
 [[package]]
 name = "cmark-syntax"
-version = "0.1.1"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbc1dd3a6136ade5d86948916711ed9e84f013f849a70ca9818a45c23e88d893"
+checksum = "3ec06983851bf39d99ef290d47ab5074b74e6eb0d6ef37e5cd846b672b7cc977"
 dependencies = [
  "latex2mathml",
  "logos",
