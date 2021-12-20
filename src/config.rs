@@ -68,7 +68,7 @@ pub struct Config<'c> {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     #[ramhorns(skip)]
     pub(crate) taxonomies: HashMap<&'c str, TaxonMeta<'c>>,
-    #[serde(default, flatten, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(flatten)]
     #[ramhorns(flatten)]
     extra: HashMap<&'c str, Any<'c>>,
 

@@ -52,6 +52,8 @@ pub enum Any<'a> {
     String(#[serde(borrow)] Cow<'a, str>),
     /// A number.
     Number(f64),
+    /// A boolean value.
+    Bool(bool),
     /// Date and time data.
     DateTime(DateTime),
     /// A list.
@@ -134,6 +136,7 @@ impl<'a> Content for Any<'a> {
     #[inline]
     fn is_truthy(&self) -> bool {
         match self {
+            Any::Bool(b) => *b,
             Any::List(vec) => !vec.is_empty(),
             Any::Map(map) => !map.is_empty(),
             Any::String(s) => !s.is_empty(),
@@ -145,6 +148,7 @@ impl<'a> Content for Any<'a> {
     #[inline]
     fn render_escaped<E: Encoder>(&self, encoder: &mut E) -> Result<(), E::Error> {
         match self {
+            Any::Bool(b) => b.render_escaped(encoder),
             Any::String(ref s) => crate::page::render_content(s, encoder),
             Any::Number(n) => n.render_escaped(encoder),
             Any::DateTime(dt) => dt.render_escaped(encoder),
@@ -156,6 +160,7 @@ impl<'a> Content for Any<'a> {
     #[inline]
     fn render_unescaped<E: Encoder>(&self, encoder: &mut E) -> Result<(), E::Error> {
         match self {
+            Any::Bool(b) => b.render_unescaped(encoder),
             Any::String(s) => s.render_unescaped(encoder),
             Any::Number(n) => n.render_unescaped(encoder),
             Any::DateTime(dt) => dt.render_unescaped(encoder),
