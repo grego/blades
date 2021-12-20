@@ -13,14 +13,21 @@ use ramhorns::traits::ContentSequence;
 use ramhorns::{Content, Section};
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 
+use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::fmt;
+use std::hash::Hash;
+use std::ops::{Deref, DerefMut};
 use std::path::{is_separator, PathBuf};
 use std::time::SystemTime;
 
-pub(crate) type HashMap<K, V> = std::collections::HashMap<K, V, ahash::RandomState>;
 /// A set of all rendered paths. Behind a mutex, so it can be written from multiple threads.
 pub type MutSet<T = PathBuf> = parking_lot::Mutex<HashSet<T, ahash::RandomState>>;
+
+/// A hash map wrapper that can render fields directly by the hash.
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[serde(transparent)]
+pub struct HashMap<K: Hash + Eq, V>(pub(crate) hashbrown::HashMap<K, V, fnv::FnvBuildHasher>);
 
 /// A wrapper around the `chrono::NaiveDateTime`, used for rendering of dates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
@@ -405,5 +412,151 @@ impl From<SystemTime> for DateTime {
     fn from(st: SystemTime) -> Self {
         let time: chrono::DateTime<chrono::Utc> = st.into();
         DateTime(time.naive_utc())
+    }
+}
+
+impl<K: Borrow<str> + Hash + Eq, V: Content> Content for HashMap<K, V> {
+    #[inline]
+    fn is_truthy(&self) -> bool {
+        !self.is_empty()
+    }
+
+    /// Render a section with self.
+    #[inline]
+    fn render_section<C, E>(&self, section: Section<C>, encoder: &mut E) -> Result<(), E::Error>
+    where
+        C: ContentSequence,
+        E: Encoder,
+    {
+        if self.is_truthy() {
+            section.with(self).render(encoder)
+        } else {
+            Ok(())
+        }
+    }
+
+    #[inline]
+    fn render_field_escaped<E>(
+        &self,
+        hash: u64,
+        _name: &str,
+        encoder: &mut E,
+    ) -> Result<bool, E::Error>
+    where
+        E: Encoder,
+    {
+        match self.raw_entry().from_hash(hash, |_| true) {
+            Some((_, v)) => v.render_escaped(encoder).map(|_| true),
+            None => Ok(false),
+        }
+    }
+
+    #[inline]
+    fn render_field_unescaped<E>(
+        &self,
+        hash: u64,
+        _name: &str,
+        encoder: &mut E,
+    ) -> Result<bool, E::Error>
+    where
+        E: Encoder,
+    {
+        match self.raw_entry().from_hash(hash, |_| true) {
+            Some((_, v)) => v.render_unescaped(encoder).map(|_| true),
+            None => Ok(false),
+        }
+    }
+
+    #[inline]
+    fn render_field_section<C, E>(
+        &self,
+        hash: u64,
+        _name: &str,
+        section: Section<C>,
+        encoder: &mut E,
+    ) -> Result<bool, E::Error>
+    where
+        C: ContentSequence,
+        E: Encoder,
+    {
+        match self.raw_entry().from_hash(hash, |_| true) {
+            Some((_, v)) => v.render_section(section, encoder).map(|_| true),
+            None => Ok(false),
+        }
+    }
+
+    #[inline]
+    fn render_field_inverse<C, E>(
+        &self,
+        hash: u64,
+        _name: &str,
+        section: Section<C>,
+        encoder: &mut E,
+    ) -> Result<bool, E::Error>
+    where
+        C: ContentSequence,
+        E: Encoder,
+    {
+        match self.raw_entry().from_hash(hash, |_| true) {
+            Some((_, v)) => v.render_inverse(section, encoder).map(|_| true),
+            None => Ok(false),
+        }
+    }
+}
+
+impl<K: Hash + Eq, V> Default for HashMap<K, V> {
+    #[inline]
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<K: Hash + Eq, V> Deref for HashMap<K, V> {
+    type Target = hashbrown::HashMap<K, V, fnv::FnvBuildHasher>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<K: Hash + Eq, V> DerefMut for HashMap<K, V> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<K: Hash + Eq, V> HashMap<K, V> {
+    #[inline]
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn simple_render_hash_map() {
+        use super::HashMap;
+
+        let source = "<title>{{title}}</title><h1>{{ title }}</h1><div>{{body}}</div>";
+        let tpl = ramhorns::Template::new(source).unwrap();
+
+        let mut map = HashMap::default();
+
+        map.insert("title", "Hello, Ramhorns!");
+        map.insert(
+            "body",
+            "This is a test of rendering a template with a HashMap Content!",
+        );
+
+        let rendered = tpl.render(&map);
+
+        assert_eq!(
+            &rendered,
+            "<title>Hello, Ramhorns!</title><h1>Hello, Ramhorns!</h1>\
+         <div>This is a test of rendering a template with a HashMap Content!</div>"
+        );
     }
 }

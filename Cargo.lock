@@ -85,6 +85,8 @@ dependencies = [
  "beef",
  "chrono",
  "cmark-syntax",
+ "fnv",
+ "hashbrown",
  "parking_lot",
  "pulldown-cmark",
  "ramhorns",
@@ -216,6 +218,16 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
+dependencies = [
+ "rayon",
+ "serde",
 ]
 
 [[package]]
@@ -403,9 +415,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.33"
+version = "1.0.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb37d2df5df740e582f28f8560cf425f52bb267d872fe58358eadb554909f07a"
+checksum = "2f84e92c0f7c9d58328b85a78557813e4bd845130db68d7184635344399423b1"
 dependencies = [
  "unicode-xid",
 ]
@@ -434,8 +446,7 @@ dependencies = [
 [[package]]
 name = "ramhorns"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1a49bc1fc5a91b75c965f2b1a9c4975bdab1f35b977e605615418aa3baad85d"
+source = "git+https://github.com/grego/ramhorns?branch=shorthand#dbddb4e3a9df917f2f715ea1b1e647cded90df9d"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -449,8 +460,7 @@ dependencies = [
 [[package]]
 name = "ramhorns-derive"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "226f2b96004196dbe0102f67dd0c63c9be60fdf7e14b537f9c03d4ca94f9f59b"
+source = "git+https://github.com/grego/ramhorns?branch=shorthand#dbddb4e3a9df917f2f715ea1b1e647cded90df9d"
 dependencies = [
  "bae",
  "fnv",
@@ -513,9 +523,9 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "serde"
-version = "1.0.131"
+version = "1.0.132"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ad69dfbd3e45369132cc64e6748c2d65cdfb001a2b1c232d128b4ad60561c1"
+checksum = "8b9875c23cf305cd1fd7eb77234cbb705f21ea6a72c637a5c6db5fe4b8e7f008"
 dependencies = [
  "serde_derive",
 ]
@@ -531,9 +541,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.131"
+version = "1.0.132"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b710a83c4e0dff6a3d511946b95274ad9ca9e5d3ae497b63fda866ac955358d2"
+checksum = "ecc0db5cb2556c0e558887d9bbdcf6ac4471e83ff66cf696e5419024d1606276"
 dependencies = [
  "proc-macro2",
  "quote",

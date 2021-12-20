@@ -13,11 +13,12 @@ use crate::types::{HashMap, MutSet};
 
 use arrayvec::ArrayVec;
 use beef::lean::Cow;
+use hashbrown::hash_map::Entry;
 use ramhorns::{encoding::Encoder, traits::ContentSequence, Content, Error, Ramhorns, Section};
 use serde::{Deserialize, Serialize};
 
 use std::cmp::Reverse;
-use std::collections::hash_map::Entry;
+use std::collections::BTreeMap;
 use std::fs::create_dir_all;
 use std::num::NonZeroUsize;
 use std::ops::{Deref, Range};
@@ -71,7 +72,7 @@ pub struct Taxonomy<'t, 'r> {
 }
 
 /// All the pages in one taxonomical category, classified by the class name
-struct TaxDict<'t, 'r>(HashMap<&'r str, Vec<PageLinked<'t, 'r>>>);
+struct TaxDict<'t, 'r>(BTreeMap<&'r str, Vec<PageLinked<'t, 'r>>>);
 
 /// One taxonomical key, in the context of the whole site.
 #[derive(Content, Clone)]
@@ -125,7 +126,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
                 sort_by_weight: false,
             },
             slug,
-            keys: TaxDict(HashMap::default()),
+            keys: TaxDict(Default::default()),
         }
     }
 
@@ -141,7 +142,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
                 sort_by_weight: other.sort_by_weight,
             },
             slug,
-            keys: TaxDict(HashMap::default()),
+            keys: TaxDict(Default::default()),
         }
     }
 
@@ -157,15 +158,17 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
     /// Classify the given pages into taxonomies specified by the config.
     #[inline]
     pub fn classify(pages: &'r Pages<'t>, config: &'r Config<'t>) -> Classification<'t, 'r> {
-        let mut named: Classification = config
-            .taxonomies
-            .iter()
-            .map(|(&key, tax)| (key, Taxonomy::new(key, tax)))
-            .collect();
+        let mut named: Classification = HashMap(
+            config
+                .taxonomies
+                .iter()
+                .map(|(&key, tax)| (key, Taxonomy::new(key, tax)))
+                .collect(),
+        );
 
         let pages: &[Page] = &*pages;
         for page in pages {
-            for (class, family) in &page.taxonomies {
+            for (class, family) in page.taxonomies.iter() {
                 if let Some(taxon) = named.get_mut(class) {
                     for species in family {
                         taxon.add(species, PageLinked(page, Permalink(page, &config.url)));
@@ -205,7 +208,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
 
     /// Get a reference to the key map of the given taxonomy.
     #[inline]
-    pub fn keys(&self) -> &HashMap<&'r str, Vec<PageLinked<'t, 'r>>> {
+    pub fn keys(&self) -> &BTreeMap<&'r str, Vec<PageLinked<'t, 'r>>> {
         &self.keys.0
     }
 

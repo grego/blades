@@ -28,4 +28,4 @@ pub use page::{Page, Pages, Picture};
 pub use sources::{Parser, Source, Sources};
 pub use tasks::{cleanup, colocate_assets, load_templates, render_meta};
 pub use taxonomies::{Taxonomies, Taxonomy};
-pub use types::{Ancestors, Any, DateTime, MutSet};
+pub use types::{Ancestors, Any, DateTime, HashMap, MutSet};
