@@ -139,6 +139,20 @@ impl<'a> From<Cow<'a, str>> for Ancestors<'a> {
     }
 }
 
+#[inline]
+fn content_without_paragraphs<E: Encoder>(source: &str, encoder: &mut E) -> Result<(), E::Error> {
+    use pulldown_cmark::{Event, Tag};
+    let parser =
+        pulldown_cmark::Parser::new_ext(source, pulldown_cmark::Options::all()).filter(|event| {
+            !matches!(
+                event,
+                Event::Start(Tag::Paragraph) | Event::End(Tag::Paragraph),
+            )
+        });
+    let processed = cmark_syntax::SyntaxPreprocessor::new(parser);
+    encoder.write_html(processed)
+}
+
 impl<'a> Content for Any<'a> {
     #[inline]
     fn is_truthy(&self) -> bool {
@@ -156,7 +170,7 @@ impl<'a> Content for Any<'a> {
     fn render_escaped<E: Encoder>(&self, encoder: &mut E) -> Result<(), E::Error> {
         match self {
             Any::Bool(b) => b.render_escaped(encoder),
-            Any::String(ref s) => crate::page::render_content(s, encoder),
+            Any::String(ref s) => content_without_paragraphs(s, encoder),
             Any::Number(n) => n.render_escaped(encoder),
             Any::DateTime(dt) => dt.render_escaped(encoder),
             Any::List(vec) => vec.render_escaped(encoder),

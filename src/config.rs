@@ -50,6 +50,8 @@ pub struct Config<'c> {
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     image: Cow<'c, str>,
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
+    lang: Cow<'c, str>,
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     pub(crate) url: Cow<'c, str>,
 
     #[serde(default = "default_true")]

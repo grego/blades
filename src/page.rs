@@ -685,7 +685,7 @@ impl<'p, 'r> PageList<'p, 'r> {
 }
 
 #[inline]
-pub(crate) fn render_content<E: Encoder>(source: &str, encoder: &mut E) -> Result<(), E::Error> {
+fn render_content<E: Encoder>(source: &str, encoder: &mut E) -> Result<(), E::Error> {
     let parser = pulldown_cmark::Parser::new_ext(source, pulldown_cmark::Options::all());
     let processed = cmark_syntax::SyntaxPreprocessor::new(parser);
     encoder.write_html(processed)

@@ -135,9 +135,9 @@ dependencies = [
 
 [[package]]
 name = "cmark-syntax"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ec06983851bf39d99ef290d47ab5074b74e6eb0d6ef37e5cd846b672b7cc977"
+checksum = "0ea722d264c5da004d1dd4917692ac7fd1eba290a7b56772b9fa243a8762be5c"
 dependencies = [
  "latex2mathml",
  "logos",
@@ -350,9 +350,9 @@ dependencies = [
 
 [[package]]
 name = "num_cpus"
-version = "1.13.0"
+version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05499f3756671c15885fee9034446956fff3f243d6077b91e5767df161f766b3"
+checksum = "19e64526ebdee182341572e50e9ad03965aa510cd94427a4549448f285e957a1"
 dependencies = [
  "hermit-abi",
  "libc",
@@ -424,9 +424,9 @@ dependencies = [
 
 [[package]]
 name = "pulldown-cmark"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffade02495f22453cd593159ea2f59827aae7f53fa8323f756799b670881dcf8"
+checksum = "acd16514d1af5f7a71f909a44ef253cdb712a376d7ebc8ae4a471a9be9743548"
 dependencies = [
  "bitflags",
  "getopts",
@@ -446,7 +446,7 @@ dependencies = [
 [[package]]
 name = "ramhorns"
 version = "0.13.0"
-source = "git+https://github.com/grego/ramhorns?branch=shorthand#dbddb4e3a9df917f2f715ea1b1e647cded90df9d"
+source = "git+https://github.com/grego/ramhorns?branch=shorthand#ffd11bfea3a8130a0fb16c532290b0d09ac057aa"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -460,7 +460,7 @@ dependencies = [
 [[package]]
 name = "ramhorns-derive"
 version = "0.13.0"
-source = "git+https://github.com/grego/ramhorns?branch=shorthand#dbddb4e3a9df917f2f715ea1b1e647cded90df9d"
+source = "git+https://github.com/grego/ramhorns?branch=shorthand#ffd11bfea3a8130a0fb16c532290b0d09ac057aa"
 dependencies = [
  "bae",
  "fnv",
@@ -599,9 +599,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.82"
+version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8daf5dd0bb60cbd4137b1b587d2fc0ae729bc07cf01cd70b36a1ed5ade3b9d59"
+checksum = "23a1dfb999630e338648c83e91c59a4e9fb7620f520c3194b6b89e276f2f1959"
 dependencies = [
  "proc-macro2",
  "quote",
