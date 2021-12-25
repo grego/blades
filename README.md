@@ -31,7 +31,7 @@ to let you focus on your content.
 * Image gallery generation
 * [CommonMark](https://commonmark.org) markdown with tables and footnotes for content
 * Automatic syntax highlighting using [cmark-syntax](https://github.com/grego/cmark-syntax)
-  (with a possibility of turning LaTeX formulas into [MathML](https://developer.mozilla.org/docs/Web/MathML)
+  (with a possibility of turning LaTeX formulas into [MathML](https://developer.mozilla.org/docs/Web/MathML))
 * Customisable taxonomies (like categories or tags)
 * Pagination
 * Breadcrumbs
@@ -52,7 +52,12 @@ Nevertheless, if you have a feature request or ran into some issue using Blades,
 They shave the [mustache](https://mustache.github.io/mustache.5.html) off.
 
 ## Installing
-If you have the Rust toolchain installed, you can install Blades from [Crates.io](https://crates.io/crates/blades)
+If you have the Rust toolchain installed, you can install Blades from this repository
+``` bash
+cargo install --path .
+```
+
+or from [Crates.io](https://crates.io/crates/blades)
 ``` bash
 cargo install blades
 ```
@@ -97,7 +102,8 @@ Then run Blades in the `examples` directory:
 cargo run --release
 ```
 
-For more on plugins, check their [documentation](https://www.getblades.org/plugins.html).
+For more on plugins, check their [documentation](https://www.getblades.org/making-plugins.html) and
+[existing plugins](https://www.getblades.org/plugins/)
 
 ## Themes
 When you specify a theme in the [config](https://www.getblades.org/config.html), templates and assets from the theme are used.
