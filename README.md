@@ -57,11 +57,6 @@ If you have the Rust toolchain installed, you can install Blades from this repos
 cargo install --path .
 ```
 
-or from [Crates.io](https://crates.io/crates/blades)
-``` bash
-cargo install blades
-```
-
 It is also available on [AUR](https://aur.archlinux.org/packages/blades-bin/).
 
 Then, you can run the executable `blades` with the following subcommands:
