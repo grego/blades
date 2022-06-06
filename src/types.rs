@@ -19,10 +19,11 @@ use std::fmt;
 use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
 use std::path::{is_separator, PathBuf};
+use std::sync::Mutex;
 use std::time::SystemTime;
 
 /// A set of all rendered paths. Behind a mutex, so it can be written from multiple threads.
-pub type MutSet<T = PathBuf> = parking_lot::Mutex<HashSet<T, ahash::RandomState>>;
+pub type MutSet<T = PathBuf> = Mutex<HashSet<T, fnv::FnvBuildHasher>>;
 
 /// A hash map wrapper that can render fields directly by the hash.
 #[derive(Clone, serde::Deserialize, serde::Serialize)]

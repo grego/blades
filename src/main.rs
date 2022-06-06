@@ -8,7 +8,7 @@
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
 use blades::*;
 
-use chrono::offset::Local;
+use clap::Parser as ClapParser;
 use ramhorns::{Content, Template};
 use rayon::prelude::*;
 use std::env::var;
@@ -17,23 +17,22 @@ use std::fs::{create_dir_all, read_to_string, write};
 use std::io::{stdin, stdout, BufRead, BufReader, Lines, Write};
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
-use std::time::Instant;
-use structopt::StructOpt;
+use std::time::{Instant, SystemTime};
 use thiserror::Error;
 
 static CONFIG_FILE: &str = "Blades.toml";
 
-#[derive(StructOpt)]
+#[derive(clap_derive::Parser)]
 /// Blazing fast Dead simple Static site generator
 struct Opt {
     /// File to read the site config from
-    #[structopt(short, long, default_value = CONFIG_FILE)]
+    #[clap(short, long, default_value = CONFIG_FILE)]
     config: String,
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     cmd: Option<Cmd>,
 }
 
-#[derive(PartialEq, StructOpt)]
+#[derive(PartialEq, clap_derive::Subcommand)]
 enum Cmd {
     /// Initialise the site in the current directory, creating the basic files and folders
     Init,
@@ -228,7 +227,9 @@ fn new_page(config: &Config) -> Result<(), Error> {
         "Path (relative to the content directory):",
     )?);
     create_dir_all(&path)?;
-    let date = Local::now().format("%Y-%m-%d").to_string();
+
+    let date: chrono::DateTime<chrono::Utc> = SystemTime::now().into();
+    let date = date.format("%Y-%m-%d").to_string();
     path.push(format!("{}-{}.toml", &date, &slug));
 
     if path.exists() {
@@ -374,7 +375,7 @@ fn build(config: &Config) -> Result<(), Error> {
                     taxonomy.render_key((n, l), config, &taxonomies, &pages, &templates, &rendered)
                 })
             })?;
-            render_meta(&pages, &taxonomies, config, &rendered).map_err(Into::into)
+            render_meta(&pages, &taxonomies, config).map_err(Into::into)
         },
     );
     res_l?;
@@ -401,7 +402,7 @@ fn build(config: &Config) -> Result<(), Error> {
 }
 
 fn main() {
-    let opt = Opt::from_args();
+    let opt: Opt = ClapParser::parse();
     let start = Instant::now();
 
     let config_file = match std::fs::read_to_string(&opt.config) {

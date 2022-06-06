@@ -45,7 +45,7 @@ where
 {
     let path = path.into();
     template.render_to_file(&path, content)?;
-    if let Some(path) = rendered.lock().replace(path) {
+    if let Some(path) = rendered.lock().unwrap().replace(path) {
         println!("Warning: more paths render to {}", path.to_string_lossy());
     }
     Ok(())
@@ -61,14 +61,10 @@ struct Meta<'p, 'r>(
 
 impl<'p> Meta<'p, '_> {
     #[inline]
-    fn render(
-        &self,
-        name: &str,
-        template: &str,
-        path: &Path,
-        rendered: &MutSet,
-    ) -> Result<(), ramhorns::Error> {
-        render(&Template::new(template)?, path.join(name), self, rendered)
+    fn render(&self, name: &str, template: &str, path: &Path) -> Result<(), ramhorns::Error> {
+        Template::new(template)?
+            .render_to_file(path.join(name), self)
+            .map_err(Into::into)
     }
 }
 
@@ -77,7 +73,6 @@ pub fn render_meta<'p>(
     pages: &[Page<'p>],
     taxons: &Classification<'p, '_>,
     config: &Config<'p>,
-    rendered: &MutSet,
 ) -> Result<(), ramhorns::Error> {
     let pages = PageList::new(pages, 0..pages.len(), 0, &config.url);
     let meta = Meta(DateTime::now(), pages, TaxonList(taxons), config);
@@ -85,15 +80,15 @@ pub fn render_meta<'p>(
 
     if config.sitemap {
         let sitemap = include_str!("templates/sitemap.xml");
-        meta.render("sitemap.xml", sitemap, path, rendered)?;
+        meta.render("sitemap.xml", sitemap, path)?;
     }
     if config.rss {
         let rss = include_str!("templates/rss.xml");
-        meta.render("rss.xml", rss, path, rendered)?;
+        meta.render("rss.xml", rss, path)?;
     }
     if config.atom {
         let atom = include_str!("templates/atom.xml");
-        meta.render("atom.xml", atom, path, rendered)?;
+        meta.render("atom.xml", atom, path)?;
     }
     Ok(())
 }
@@ -146,7 +141,7 @@ pub fn colocate_assets(config: &Config) -> Result<(), io::Error> {
 /// Delete all the pages that were present in the previous render, but not the current one.
 /// Then, write all the paths that were rendered to the file `filelist`
 pub fn cleanup(rendered: MutSet, filelist: &str) -> Result<(), io::Error> {
-    let rendered = rendered.into_inner();
+    let rendered = rendered.into_inner().unwrap();
     if let Ok(f) = File::open(filelist) {
         BufReader::new(f).lines().try_for_each(|filename| {
             let filename = filename?;

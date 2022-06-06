@@ -7,10 +7,10 @@ const RENDERED_BYTES: u64 =
     "Hello, Ramhorns!This is a really simple test of the rendering!<title></title><h1></h1><div></div>".len() as u64;
 
 #[bench]
-fn ahash_hashmap(b: &mut Bencher) {
+fn fnv_hashmap(b: &mut Bencher) {
     let tpl = ramhorns::Template::new(SOURCE).unwrap();
 
-    let mut map: std::collections::HashMap<_, _, ahash::RandomState> = Default::default();
+    let mut map: std::collections::HashMap<_, _, fnv::FnvBuildHasher> = Default::default();
     map.insert("title", "Hello, Ramhorns!");
     map.insert("body", "This is a really simple test of the rendering!");
 

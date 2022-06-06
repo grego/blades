@@ -139,7 +139,7 @@ impl<P: Parser> Sources<P> {
             let read = File::open(&path)?.read_to_end(&mut self.data)?;
             let mid = start + read;
             let path = path.to_string_lossy();
-            let ext_start = path.rfind('.').unwrap_or_else(|| path.len());
+            let ext_start = path.rfind('.').unwrap_or(path.len());
             self.data.extend_from_slice(path[..ext_start].as_ref());
             let end = self.data.len();
             self.sources
