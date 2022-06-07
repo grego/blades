@@ -1,6 +1,6 @@
 [package]
 name = "blades"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Maroš Grego <maros@grego.site>"]
 edition = "2021"
 description = "Blazing fast dead simple static site generator"
@@ -12,13 +12,13 @@ readme = "README.md"
 homepage = "https://www.getblades.org"
 
 [dependencies]
-ramhorns = { git = "https://github.com/grego/ramhorns", branch = "shorthand" }
+ramhorns = "0.14"
 arrayvec = { version = "0.7", features = ["serde"] }
 beef = { version = "0.5", features = ["impl_serde"]}
 serde = { version = "^1.0.126", features = ["derive"] }
 chrono = { version = "^0.4.19", features = ["std", "serde"], default_features = false }
 fnv = "1.0"
-hashbrown = { version = "0.12.1", features = ["inline-more", "serde"], default_features = false }
+hashbrown = { version = "0.11", features = ["inline-more", "serde"], default_features = false }
 serde-cmd = "0.1.3"
 pulldown-cmark = { version = "0.9", default_features = false }
 cmark-syntax = "0.3"
@@ -26,13 +26,13 @@ cmark-syntax = "0.3"
 # Cargo doesn't support binary-only dependencies yet.
 toml = { version = "0.5.9", optional = true }
 rayon = { version = "1.5.3", optional = true }
-clap = { version = "3.1.18", optional = true, default_features = false, features = ["std"] }
-clap_derive = { version = "3.1.18", optional = true }
+clap = { version = "3.1", optional = true, default_features = false, features = ["std"] }
+clap_derive = { version = "3.1", optional = true }
 thiserror = { version = "1.0.31", optional = true }
 serde_json = { version = "1", optional = true }
 
 [features]
-bin = ["toml", "rayon", "clap", "clap_derive", "thiserror", "serde_json", "hashbrown/rayon"]
+bin = ["toml", "rayon", "clap", "clap_derive", "thiserror", "serde_json"]
 mathml = ["cmark-syntax/latex2mathml"]
 default = ["bin", "mathml"]
 
@@ -44,6 +44,3 @@ codegen-units = 1
 
 [profile.bench]
 lto = true
-
-[patch.crates-io]
-ramhorns-derive = { git = "https://github.com/grego/ramhorns", branch = "shorthand" }

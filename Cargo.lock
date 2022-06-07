@@ -47,7 +47,7 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "blades"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "arrayvec",
  "beef",
@@ -56,7 +56,7 @@ dependencies = [
  "clap_derive",
  "cmark-syntax",
  "fnv",
- "hashbrown 0.12.1",
+ "hashbrown",
  "pulldown-cmark",
  "ramhorns",
  "rayon",
@@ -191,14 +191,7 @@ name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
-
-[[package]]
-name = "hashbrown"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db0d4cf898abf0081f964436dc980e96670a0f36863e4b83aaacdb65c9d7ccc3"
 dependencies = [
- "rayon",
  "serde",
 ]
 
@@ -233,7 +226,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6012d540c5baa3589337a98ce73408de9b5a25ec9fc2c6fd6be8f0d39e0ca5a"
 dependencies = [
  "autocfg",
- "hashbrown 0.11.2",
+ "hashbrown",
 ]
 
 [[package]]
@@ -389,8 +382,9 @@ dependencies = [
 
 [[package]]
 name = "ramhorns"
-version = "0.13.0"
-source = "git+https://github.com/grego/ramhorns?branch=shorthand#b6c675c767a6f32dbf348d843602ee5120aec5a8"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47008ae2e2a9085a3f658203609d79f8a027829cf88a088d0c0084e18ba8f0b9"
 dependencies = [
  "arrayvec",
  "beef",
@@ -402,8 +396,9 @@ dependencies = [
 
 [[package]]
 name = "ramhorns-derive"
-version = "0.13.0"
-source = "git+https://github.com/grego/ramhorns?branch=shorthand#b6c675c767a6f32dbf348d843602ee5120aec5a8"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ada9bbdd21adf426f932bf76b3db7d553538dffc16afd5fb8ce2ce2110a75536"
 dependencies = [
  "bae",
  "fnv",

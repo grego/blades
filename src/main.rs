@@ -369,12 +369,12 @@ fn build(config: &Config) -> Result<(), Error> {
             })
         },
         || -> Result<(), Error> {
-            taxonomies.par_iter().try_for_each(|(_, taxonomy)| {
+            for (_, taxonomy) in taxonomies.iter() {
                 taxonomy.render(config, &taxonomies, &pages, &templates, &rendered)?;
-                taxonomy.keys().par_iter().try_for_each(|(n, l)| {
-                    taxonomy.render_key((n, l), config, &taxonomies, &pages, &templates, &rendered)
-                })
-            })?;
+                for (n, l) in taxonomy.keys().iter() {
+                    taxonomy.render_key((n, l), config, &taxonomies, &pages, &templates, &rendered)?;
+                }
+            };
             render_meta(&pages, &taxonomies, config).map_err(Into::into)
         },
     );
