@@ -52,13 +52,25 @@ Nevertheless, if you have a feature request or ran into some issue using Blades,
 They shave the [mustache](https://mustache.github.io/mustache.5.html) off.
 
 ## Installing
-If you have the Rust toolchain installed, you can install Blades from this repository
-``` bash
+With the Rust toolchain installed, you can install Blades from [crates.io](https://crates.io/crates/blades)
+```bash
+cargo install blades
+```
+
+Or from its repository
+```bash
+git clone https://github.com/grego/blades
+cd blades
 cargo install --path .
 ```
 
-It is also available on [AUR](https://aur.archlinux.org/packages/blades-bin/).
+## macOS
+Using the package manager [MacPorts](https://www.macports.org)
+```bash
+sudo port install blades
+```
 
+## Running
 Then, you can run the executable `blades` with the following subcommands:
 * `init`: Initialise the site in the current directory, creating the basic files and folders
 * `build`: Build the site according to config, content, templates and themes in the current directory
