@@ -23,6 +23,7 @@ use thiserror::Error;
 static CONFIG_FILE: &str = "Blades.toml";
 
 #[derive(clap_derive::Parser)]
+#[clap(version, about)]
 /// Blazing fast Dead simple Static site generator
 struct Opt {
     /// File to read the site config from
