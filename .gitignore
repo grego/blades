@@ -6,3 +6,4 @@
 **.blades*
 examples/public/**/*
 examples/pages.json
+.dccache
