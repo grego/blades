@@ -289,7 +289,6 @@ impl<'p> Page<'p> {
     pub fn new<P: Parser>(
         source: &'p Source<P>,
         data: &'p Sources<P>,
-        config: &Config,
     ) -> Result<Self, (P::Error, Box<str>)> {
         let path = std::str::from_utf8(&data.data[source.path.clone()]).unwrap();
         let mut page = source
@@ -302,15 +301,8 @@ impl<'p> Page<'p> {
         page.pages = source.pages.clone();
         page.subsections = source.subsections.clone();
         page.parent = source.parent;
-        if config.dates_of_creation {
-            page.date = page.date.or_else(|| source.date.map(|d| d.into()));
-        }
+        page.date = page.date.or_else(|| source.date.map(|d| d.into()));
 
-        // The path is already ensured to be valid UTF-8
-        let path = path
-            .strip_prefix(config.content_dir.as_ref())
-            .unwrap_or(path);
-        let path = path.strip_prefix(is_separator).unwrap_or(path);
         if is_section || page.slug.is_empty() || page.slug.contains(is_separator) {
             let slug = path.rsplit(is_separator).next().unwrap_or_default();
             page.slug = Cow::const_str(slug);

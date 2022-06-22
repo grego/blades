@@ -166,7 +166,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
                 .collect(),
         );
 
-        let pages: &[Page] = &*pages;
+        let pages: &[Page] = pages;
         for page in pages {
             for (class, family) in page.taxonomies.iter() {
                 if let Some(taxon) = named.get_mut(class) {

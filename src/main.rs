@@ -10,7 +10,6 @@ use blades::*;
 
 use clap::Parser as ClapParser;
 use ramhorns::{Content, Template};
-use rayon::prelude::*;
 use std::env::var;
 use std::ffi::OsStr;
 use std::fs::{create_dir_all, read_to_string, write};
@@ -18,6 +17,7 @@ use std::io::{stdin, stdout, BufRead, BufReader, Lines, Write};
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 use std::time::{Instant, SystemTime};
+use std::{cmp, thread};
 use thiserror::Error;
 
 static CONFIG_FILE: &str = "Blades.toml";
@@ -192,6 +192,23 @@ fn separate_md_header(source: &[u8]) -> (&[u8], &[u8]) {
     (&source[3..], &[])
 }
 
+trait Unwind {
+    type Value;
+
+    fn unwind(self) -> Self::Value;
+}
+
+impl<T> Unwind for thread::Result<T> {
+    type Value = T;
+
+    fn unwind(self) -> T {
+        match self {
+            Ok(t) => t,
+            Err(e) => std::panic::resume_unwind(e),
+        }
+    }
+}
+
 /// Get the next line from the standard input after displaying some message
 fn next_line<B: BufRead>(lines: &mut Lines<B>, message: &str) -> Result<String, std::io::Error> {
     print!("{} ", message);
@@ -202,8 +219,7 @@ fn next_line<B: BufRead>(lines: &mut Lines<B>, message: &str) -> Result<String, 
 /// Initialise the site
 fn init() -> Result<(), Error> {
     println!("Enter the basic site info");
-    let stdin = stdin();
-    let mut lines = BufReader::new(stdin.lock()).lines();
+    let mut lines = BufReader::new(stdin().lock()).lines();
     let title = next_line(&mut lines, "Name:")?;
     let author = next_line(&mut lines, "Author:")?;
     let config = MockConfig { title, author };
@@ -219,8 +235,7 @@ fn init() -> Result<(), Error> {
 /// Create a new page and edit it if the EDITOR variable is set
 fn new_page(config: &Config) -> Result<(), Error> {
     println!("Enter the basic info of the new page");
-    let stdin = stdin();
-    let mut lines = BufReader::new(stdin.lock()).lines();
+    let mut lines = BufReader::new(stdin().lock()).lines();
     let title = next_line(&mut lines, "Title:")?;
     let slug = next_line(&mut lines, "Slug (short name in the URL):")?;
     let mut path = Path::new(config.content_dir.as_ref()).join(next_line(
@@ -262,32 +277,45 @@ fn new_page(config: &Config) -> Result<(), Error> {
 }
 
 /// The actual logic of task parallelisation.
-/// This is the only place in the crate where Rayon is used.
 fn build(config: &Config) -> Result<(), Error> {
-    let sources: Sources<Format> = Sources::load(config)?;
-    let (templates, pages) = rayon::join(
-        || load_templates(config),
-        || -> Result<_, Error> {
-            let pages = sources
-                .sources()
-                .par_iter()
-                .map(|src| Page::new(src, &sources, config))
-                .collect::<Result<Vec<_>, _>>()?;
+    const MIN_PER_THREAD: usize = 5;
 
-            Ok(pages)
-        },
-    );
-    let (templates, pages) = (templates?, pages?);
+    let sources: Sources<Format> = Sources::load(config.content_dir.as_ref())?;
+    let num_pages = sources.sources().len();
+    let num_threads = thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
+    let num_threads = cmp::max(num_threads - 1, num_pages / MIN_PER_THREAD);
+    let per_thread = (num_pages / num_threads) + 1;
+
+    let (templates, pages) = thread::scope(|s| {
+        let mut threads = Vec::with_capacity(num_threads);
+        for chunk in sources.sources().chunks(per_thread) {
+            threads.push(s.spawn(|| {
+                chunk
+                    .iter()
+                    .map(|src| Page::new(src, &sources))
+                    .collect::<Result<Vec<_>, _>>()
+            }));
+        }
+        let templates = load_templates(config)?;
+        let mut pages = Vec::with_capacity(num_pages);
+        for thread in threads.drain(..) {
+            pages.append(&mut thread.join().unwind()?);
+        }
+        Ok::<_, Error>((templates, pages))
+    })?;
 
     // Input plugins
+    // Store input pages separately, so that we can borrow from the data
     let inputs = config
         .plugins
         .input
-        .par_iter()
+        .iter()
         .map(|cmd| cmd.make_command().output()?.output_result(&cmd.path))
         .collect::<Result<Vec<_>, _>>()?;
     let input_pages = inputs
-        .par_iter()
+        .iter()
         .map(|input| serde_json::from_slice(input))
         .collect::<Result<Vec<Vec<Page>>, _>>()?;
     let mut pages = pages;
@@ -319,7 +347,7 @@ fn build(config: &Config) -> Result<(), Error> {
 
     // Content plugins
     if !config.plugins.content.is_empty() {
-        pages.par_iter_mut().try_for_each(|page| {
+        pages.iter_mut().try_for_each(|page| {
             let mut output: Option<String> = None;
             for &cmd in config.plugins.default.iter().chain(page.plugins.iter()) {
                 let mut child = config.plugins.content[cmd]
@@ -346,48 +374,58 @@ fn build(config: &Config) -> Result<(), Error> {
     }
 
     let pages = if !inputs.is_empty() || transformed.is_some() {
-        pages.par_sort_unstable();
+        pages.sort_unstable();
         Pages::from_external(pages)
     } else {
         Pages::from_sources(pages)
     };
 
-    let (taxonomies, res) = rayon::join(
-        || Taxonomy::classify(&pages, config),
-        || {
-            pages
-                .par_iter()
-                .try_for_each(|page| page.create_directory(config))
-        },
-    );
-    res?;
+    for page in pages.iter() {
+        page.create_directory(config)?;
+    }
+
+    let taxonomies = Taxonomy::classify(&pages, config);
 
     let rendered = MutSet::default();
-    let (res_l, res_r) = rayon::join(
-        || {
-            pages.par_iter().try_for_each(|page| {
-                page.render(&pages, &templates, config, &taxonomies, &rendered)
-            })
-        },
-        || -> Result<(), Error> {
-            for (_, taxonomy) in taxonomies.iter() {
-                taxonomy.render(config, &taxonomies, &pages, &templates, &rendered)?;
-                for (n, l) in taxonomy.keys().iter() {
-                    taxonomy.render_key((n, l), config, &taxonomies, &pages, &templates, &rendered)?;
+    thread::scope(|s| {
+        let mut threads = Vec::with_capacity(num_threads);
+        for chunk in pages.chunks(per_thread) {
+            threads.push(s.spawn(|| {
+                for page in chunk.iter() {
+                    page.render(&pages, &templates, config, &taxonomies, &rendered)?;
                 }
-            };
-            render_meta(&pages, &taxonomies, config).map_err(Into::into)
-        },
-    );
-    res_l?;
-    res_r?;
+                Ok::<_, Error>(())
+            }));
+        }
+        
+        for (_, taxonomy) in taxonomies.iter() {
+            taxonomy.render(config, &taxonomies, &pages, &templates, &rendered)?;
+            for (n, l) in taxonomy.keys().iter() {
+                taxonomy.render_key(
+                    (n, l),
+                    config,
+                    &taxonomies,
+                    &pages,
+                    &templates,
+                    &rendered,
+                )?;
+            }
+        }
+        render_meta(&pages, &taxonomies, config)?;
+                
+        for thread in threads.drain(..) {
+            thread.join().unwind()?;
+        }
+        Ok::<_, Error>(())
 
+    })?;
+    
     cleanup(rendered, FILELIST)?;
 
     // Output plugins
     if !config.plugins.output.is_empty() {
         let pagedata = serde_json::to_string(&pages)?;
-        config.plugins.output.par_iter().try_for_each(|cmd| {
+        for cmd in config.plugins.output.iter() {
             let mut child = cmd
                 .make_command()
                 .stdin(Stdio::piped())
@@ -396,8 +434,8 @@ fn build(config: &Config) -> Result<(), Error> {
             let mut stdin = child.stdin.take().expect("Failed to open child stdin");
             stdin.write_all(pagedata.as_ref())?;
             drop(stdin);
-            child.wait_with_output()?.output_result(&cmd.path).map(drop)
-        })?;
+            child.wait_with_output()?.output_result(&cmd.path).map(drop)?;
+        }
     }
     Ok(())
 }

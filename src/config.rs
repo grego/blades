@@ -62,8 +62,6 @@ pub struct Config<'c> {
     pub(crate) atom: bool,
     #[serde(default = "default_true")]
     pub(crate) implicit_taxonomies: bool,
-    #[serde(default = "default_true")]
-    pub(crate) dates_of_creation: bool,
 
     #[serde(borrow, default)]
     author: Option<Author<'c>>,

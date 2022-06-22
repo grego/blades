@@ -6,14 +6,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-use crate::config::Config;
 use crate::page::Page;
 
 use std::ffi::OsStr;
 use std::fs::{read_dir, File};
 use std::io::{self, Read};
 use std::ops::Range;
-use std::path::PathBuf;
+use std::path::{is_separator, PathBuf};
 use std::time::SystemTime;
 
 /// A structure that can parse Page from binary data.
@@ -103,6 +102,7 @@ impl<P: Parser> Sources<P> {
         index: usize,
         path: PathBuf,
         dirs: &mut Vec<PathBuf>,
+        content_dir: &str,
     ) -> Result<(), io::Error> {
         let start = self.sources.len();
         let mut index_file = None;
@@ -161,8 +161,11 @@ impl<P: Parser> Sources<P> {
             0
         };
         let mid = source_start + read;
-        self.data
-            .extend_from_slice(path.to_string_lossy().as_ref().as_ref());
+
+        let path = path.to_string_lossy();
+        let p = path.strip_prefix(content_dir).unwrap_or(&path);
+        let p = p.strip_prefix(is_separator).unwrap_or(p);
+        self.data.extend_from_slice(p.as_ref());
         let source_end = self.data.len();
 
         self.sources[index].path = mid..source_end;
@@ -175,23 +178,20 @@ impl<P: Parser> Sources<P> {
         Ok(())
     }
 
-    /// Load all the sources from the directory specified by the config.
-    pub fn load(config: &Config) -> Result<Self, io::Error> {
+    /// Load all the sources from the directory
+    pub fn load(dir: &str) -> Result<Self, io::Error> {
         let mut sources = Self {
             data: Vec::with_capacity(65536),
             sources: Vec::with_capacity(64),
         };
-        // The first source directory is the one specified in config.
-        sources
-            .sources
-            .push(Source::empty(config.content_dir.as_ref().into(), 0));
+        sources.sources.push(Source::empty(dir.into(), 0));
 
         let mut dirs_buffer = Vec::new();
         let mut i = 0;
         // Check all the sources whether they contain something more to load.
         while i < sources.sources.len() {
             if let Some(path) = sources.sources[i].to_load.take() {
-                sources.step(i, path, &mut dirs_buffer)?;
+                sources.step(i, path, &mut dirs_buffer, dir)?;
             }
             i += 1;
         }
@@ -199,7 +199,7 @@ impl<P: Parser> Sources<P> {
         Ok(sources)
     }
 
-    /// Get a reference of the innel list of sources.
+    /// Get a reference of the inner list of sources.
     pub fn sources(&self) -> &[Source<P>] {
         &self.sources
     }
