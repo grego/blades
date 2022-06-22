@@ -6,7 +6,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-use crate::config::{Config, ASSET_SRC_DIR, TEMPLATE_DIR};
+use crate::config::{Config, Site, ASSET_SRC_DIR, TEMPLATE_DIR};
 use crate::page::{Page, PageList};
 use crate::taxonomies::{Classification, TaxonList};
 use crate::types::{DateTime, MutSet};
@@ -56,7 +56,7 @@ struct Meta<'p, 'r>(
     #[ramhorns(rename = "date")] DateTime,
     #[ramhorns(rename = "pages")] PageList<'p, 'r>,
     #[ramhorns(rename = "taxons")] TaxonList<'p, 'r>,
-    #[ramhorns(rename = "site")] &'r Config<'p>,
+    #[ramhorns(rename = "site")] &'r Site<'p>,
 );
 
 impl<'p> Meta<'p, '_> {
@@ -71,24 +71,24 @@ impl<'p> Meta<'p, '_> {
 /// Render sitemap, Atom and RSS feeds if enabled in the config.
 pub fn render_meta<'p>(
     pages: &[Page<'p>],
+    site: &Site<'p>,
     taxons: &Classification<'p, '_>,
-    config: &Config<'p>,
+    output_dir: &Path,
 ) -> Result<(), ramhorns::Error> {
-    let pages = PageList::new(pages, 0..pages.len(), 0, &config.url);
-    let meta = Meta(DateTime::now(), pages, TaxonList(taxons), config);
-    let path = Path::new(config.output_dir.as_ref());
+    let pages = PageList::new(pages, 0..pages.len(), 0, &site.url);
+    let meta = Meta(DateTime::now(), pages, TaxonList(taxons), site);
 
-    if config.sitemap {
+    if site.sitemap {
         let sitemap = include_str!("templates/sitemap.xml");
-        meta.render("sitemap.xml", sitemap, path)?;
+        meta.render("sitemap.xml", sitemap, output_dir)?;
     }
-    if config.rss {
+    if site.rss {
         let rss = include_str!("templates/rss.xml");
-        meta.render("rss.xml", rss, path)?;
+        meta.render("rss.xml", rss, output_dir)?;
     }
-    if config.atom {
+    if site.atom {
         let atom = include_str!("templates/atom.xml");
-        meta.render("atom.xml", atom, path)?;
+        meta.render("atom.xml", atom, output_dir)?;
     }
     Ok(())
 }
@@ -120,7 +120,7 @@ fn copy_dir(src: &mut PathBuf, dest: &mut PathBuf) -> Result<(), io::Error> {
 /// if used, into a dedicated subdirectory of the output directory specified in the config
 /// (defaults to `assets`, too).
 pub fn colocate_assets(config: &Config) -> Result<(), io::Error> {
-    let mut output = Path::new(config.output_dir.as_ref()).join(config.assets.as_ref());
+    let mut output = Path::new(config.output_dir.as_ref()).join(config.site.assets.as_ref());
     match remove_dir_all(&output) {
         Ok(_) => Ok(()),
         Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),

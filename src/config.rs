@@ -21,77 +21,84 @@ pub(crate) static ASSET_SRC_DIR: &str = "assets";
 
 /// Main configuration where all the site settings are set.
 /// Razor deserializes it from a given TOML file.
-#[derive(Content, Deserialize, Serialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct Config<'c> {
     /// The directory of the content
     #[serde(borrow, default = "default_content_dir")]
-    #[ramhorns(skip)]
     pub content_dir: Cow<'c, str>,
     /// The directory where the output should be rendered to
     #[serde(borrow, default = "default_output_dir")]
-    #[ramhorns(skip)]
     pub output_dir: Cow<'c, str>,
     /// The directory where the themes are
     #[serde(borrow, default = "default_theme_dir")]
-    #[ramhorns(skip)]
     pub theme_dir: Cow<'c, str>,
-    /// Where the assets will be copied to, relative to the site directory.
-    #[serde(borrow, default = "default_assets")]
-    pub(crate) assets: Cow<'c, str>,
     /// Name of the directory of a theme this site is using, empty if none.
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
     pub theme: Cow<'c, str>,
-    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    title: Cow<'c, str>,
-    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    description: Cow<'c, str>,
-    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    keywords: Cow<'c, str>,
-    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    image: Cow<'c, str>,
-    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    lang: Cow<'c, str>,
-    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    pub(crate) url: Cow<'c, str>,
-
-    #[serde(default = "default_true")]
-    pub(crate) sitemap: bool,
-    #[serde(default = "default_true")]
-    pub(crate) rss: bool,
-    #[serde(default = "default_true")]
-    pub(crate) atom: bool,
-    #[serde(default = "default_true")]
-    pub(crate) implicit_taxonomies: bool,
-
-    #[serde(borrow, default)]
-    author: Option<Author<'c>>,
+    /// Taxonomies of the site
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    #[ramhorns(skip)]
-    pub(crate) taxonomies: HashMap<&'c str, TaxonMeta<'c>>,
+    pub taxonomies: HashMap<&'c str, TaxonMeta<'c>>,
+    /// Generate taxonomies not specified in the config?
+    #[serde(default = "default_true")]
+    pub implicit_taxonomies: bool,
+
+    /// Information about the site usable in templates
     #[serde(flatten)]
-    #[ramhorns(flatten)]
-    extra: HashMap<&'c str, Any<'c>>,
+    pub site: Site<'c>,
 
     /// Configuration of plugins for building the site.
     #[serde(default, skip_serializing)]
-    #[ramhorns(skip)]
     pub plugins: Plugins<'c>,
 }
 
-#[derive(Clone, Content, Default, Deserialize, Serialize)]
-struct Author<'a> {
+/// Information about the site usable in templates
+#[derive(Content, Default, Deserialize, Serialize)]
+pub struct Site<'c> {
+    /// Where the assets will be copied to, relative to the site directory.
+    #[serde(borrow, default = "default_assets")]
+    pub assets: Cow<'c, str>,
+    /// Title of the site
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    name: Cow<'a, str>,
+    pub title: Cow<'c, str>,
+    /// Description of the site
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    email: Cow<'a, str>,
+    pub description: Cow<'c, str>,
+    /// Keywords of the site
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    uri: Cow<'a, str>,
+    pub keywords: Cow<'c, str>,
+    /// A representative image of the site
     #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
-    avatar: Cow<'a, str>,
+    pub image: Cow<'c, str>,
+    /// Language of the site
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
+    pub lang: Cow<'c, str>,
+    /// Name of the author of the site
+    #[serde(borrow, default)]
+    pub author: Cow<'c, str>,
+    /// Email of the webmaster
+    #[serde(borrow, default)]
+    pub email: Cow<'c, str>,
+    /// URL of the site
+    #[serde(borrow, default, skip_serializing_if = "str::is_empty")]
+    pub url: Cow<'c, str>,
+
+    /// Generate a sitemap?
+    #[serde(default = "default_true")]
+    pub sitemap: bool,
+    /// Generate RSS feed?
+    #[serde(default = "default_true")]
+    pub rss: bool,
+    /// Generate Atom feed?
+    #[serde(default = "default_true")]
+    pub atom: bool,
+
+    #[serde(flatten)]
+    #[ramhorns(flatten)]
+    pub extra: HashMap<&'c str, Any<'c>>,
 }
 
 /// Plugins to use when building the site.
-#[derive(Clone, Default, Deserialize)]
+#[derive(Default, Deserialize)]
 pub struct Plugins<'p> {
     /// Plugins to get the input from, in the form of serialized list of pages.
     #[serde(borrow, default)]

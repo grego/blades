@@ -6,7 +6,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-use crate::config::Config;
+use crate::config::Site;
 use crate::sources::{Parser, Source, Sources};
 use crate::tasks::render;
 use crate::taxonomies::{Classification, Taxonomies};
@@ -158,6 +158,17 @@ pub struct Picture<'p> {
     pub taken: Option<DateTime>,
 }
 
+/// Whole context for rendering the site
+#[derive(Clone, Copy)]
+pub struct Context<'p, 'r>(
+    pub &'r Pages<'p>,
+    pub &'r Site<'p>,
+    pub &'r Classification<'p, 'r>,
+    pub &'r Ramhorns,
+    pub &'r MutSet,
+    pub &'r Path,
+);
+
 /// Page bundled with references to its subpages and subsections for rendering
 #[derive(Clone, Content)]
 pub(crate) struct PageRef<'p, 'r> {
@@ -182,7 +193,7 @@ struct PageContext<'p, 'r> {
     index: PageRef<'p, 'r>,
     pagination: Option<Pagination>,
     permalink: Permalink<'p, 'r>,
-    site: &'r Config<'p>,
+    site: &'r Site<'p>,
     classification: &'r Classification<'p, 'r>,
     /// Always true, because this is the current page
     active: Active,
@@ -225,7 +236,7 @@ struct PictureView<'p, 'r> {
     next: PictureRef<'p, 'r>,
     parent: PageRef<'p, 'r>,
     index: PageRef<'p, 'r>,
-    site: &'r Config<'p>,
+    site: &'r Site<'p>,
     classification: &'r Classification<'p, 'r>,
 }
 
@@ -336,7 +347,7 @@ impl<'p> Page<'p> {
     fn in_context<'r>(
         &'r self,
         all: &'r [Self],
-        site: &'r Config<'p>,
+        site: &'r Site<'p>,
         classification: &'r Classification<'p, 'r>,
     ) -> PageContext<'p, 'r> {
         PageContext {
@@ -362,8 +373,8 @@ impl<'p> Page<'p> {
 
     /// If the page is section, create a directory where it will be rendered to.
     /// Also creates the directories specified in `alternative_paths`.
-    pub fn create_directory(&self, config: &Config) -> Result<(), io::Error> {
-        let output_dir = Path::new(config.output_dir.as_ref());
+    pub fn create_directory<P: AsRef<Path>>(&self, output_dir: P) -> Result<(), io::Error> {
+        let output_dir = output_dir.as_ref();
 
         for path in self.alternative_paths.iter() {
             let path = output_dir.join(path);
@@ -383,13 +394,8 @@ impl<'p> Page<'p> {
     #[inline]
     pub fn render(
         &self,
-        all: &Pages,
-        templates: &Ramhorns,
-        config: &Config<'p>,
-        classification: &Classification<'p, '_>,
-        rendered: &MutSet,
+        Context(all, site, classification, templates, rendered, output_dir): Context<'p, '_>,
     ) -> Result<(), Error> {
-        let output_dir = Path::new(config.output_dir.as_ref());
         let mut output = output_dir.join(self.path.as_ref());
         output.push(self.slug.as_ref());
         if self.is_section {
@@ -410,7 +416,7 @@ impl<'p> Page<'p> {
             .get(template)
             .ok_or_else(|| Error::NotFound(template.as_ref().into()))?;
 
-        let page = self.in_context(all, config, classification);
+        let page = self.in_context(all, site, classification);
         let by = self.paginate_by.map(NonZeroUsize::get).unwrap_or(0);
         if by > 0 && self.pages.len() > by {
             let (start, end) = (self.pages.start, self.pages.end);
@@ -433,12 +439,12 @@ impl<'p> Page<'p> {
             let last = pictures.len() - 1;
             for i in 0..=last {
                 let page = PictureView {
-                    current: pictures[i].by_ref(self, &config.url),
-                    previous: pictures[if i == 0 { last } else { i - 1 }].by_ref(self, &config.url),
-                    next: pictures[if i == last { 0 } else { i + 1 }].by_ref(self, &config.url),
-                    parent: self.by_ref(all, self.id, &config.url),
-                    index: all[0].by_ref(all, self.id, &config.url),
-                    site: config,
+                    current: pictures[i].by_ref(self, &site.url),
+                    previous: pictures[if i == 0 { last } else { i - 1 }].by_ref(self, &site.url),
+                    next: pictures[if i == last { 0 } else { i + 1 }].by_ref(self, &site.url),
+                    parent: self.by_ref(all, self.id, &site.url),
+                    index: all[0].by_ref(all, self.id, &site.url),
+                    site,
                     classification,
                 };
                 output.push(pictures[i].pid.as_ref());

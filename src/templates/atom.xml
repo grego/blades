@@ -4,13 +4,10 @@
     <title>{{title}}</title>
     <link rel="related" href="{{url}}" />
     <id>{{url}}</id>
-    {{#author}}
-    <author>
-        <name>{{name}}</name>
+    {{#author}}<author>
+        <name>{{author}}</name>
         {{#email}}<email>{{email}}</email>{{/email}}
-        {{#uri}}<uri>{{uri}}</uri>{{/uri}}
-    </author>
-    {{/author}}
+    </author>{{/author}}
     <subtitle>{{description}}</subtitle>
     <generator>blades</generator>
     {{#date}}<updated>{{y}}-{{m}}-{{d}}T{{H}}:{{M}}:{{S}}Z</updated>{{/date}}

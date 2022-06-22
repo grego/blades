@@ -381,45 +381,44 @@ fn build(config: &Config) -> Result<(), Error> {
     };
 
     for page in pages.iter() {
-        page.create_directory(config)?;
+        page.create_directory(config.output_dir.as_ref())?;
     }
 
-    let taxonomies = Taxonomy::classify(&pages, config);
+    let taxonomies = Taxonomy::classify(
+        &pages,
+        config.taxonomies.iter(),
+        &config.site.url,
+        config.implicit_taxonomies,
+    );
 
     let rendered = MutSet::default();
+    let output_dir = config.output_dir.as_ref().as_ref();
+    let context = Context(&pages, &config.site, &taxonomies, &templates, &rendered, output_dir);
     thread::scope(|s| {
         let mut threads = Vec::with_capacity(num_threads);
         for chunk in pages.chunks(per_thread) {
             threads.push(s.spawn(|| {
                 for page in chunk.iter() {
-                    page.render(&pages, &templates, config, &taxonomies, &rendered)?;
+                    page.render(context)?;
                 }
                 Ok::<_, Error>(())
             }));
         }
-        
+
         for (_, taxonomy) in taxonomies.iter() {
-            taxonomy.render(config, &taxonomies, &pages, &templates, &rendered)?;
+            taxonomy.render(context)?;
             for (n, l) in taxonomy.keys().iter() {
-                taxonomy.render_key(
-                    (n, l),
-                    config,
-                    &taxonomies,
-                    &pages,
-                    &templates,
-                    &rendered,
-                )?;
+                taxonomy.render_key(n, l, context)?;
             }
         }
-        render_meta(&pages, &taxonomies, config)?;
-                
+        render_meta(&pages, &config.site, &taxonomies, output_dir)?;
+
         for thread in threads.drain(..) {
             thread.join().unwind()?;
         }
         Ok::<_, Error>(())
-
     })?;
-    
+
     cleanup(rendered, FILELIST)?;
 
     // Output plugins
@@ -434,7 +433,10 @@ fn build(config: &Config) -> Result<(), Error> {
             let mut stdin = child.stdin.take().expect("Failed to open child stdin");
             stdin.write_all(pagedata.as_ref())?;
             drop(stdin);
-            child.wait_with_output()?.output_result(&cmd.path).map(drop)?;
+            child
+                .wait_with_output()?
+                .output_result(&cmd.path)
+                .map(drop)?;
         }
     }
     Ok(())
