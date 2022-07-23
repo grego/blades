@@ -9,7 +9,7 @@
         <generator>blades</generator>
         {{#date}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/date}}
         {{#email}}<managingEditor>{{email}}</managingEditor>
-        <webMaster>{{email}}<webMaster>{{/email}}
+        <webMaster>{{email}}</webMaster>{{/email}}
     {{/site}}
     {{#pages}}
         <item>
