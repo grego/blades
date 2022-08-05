@@ -393,7 +393,14 @@ fn build(config: &Config) -> Result<(), Error> {
 
     let rendered = MutSet::default();
     let output_dir = config.output_dir.as_ref().as_ref();
-    let context = Context(&pages, &config.site, &taxonomies, &templates, &rendered, output_dir);
+    let context = Context(
+        &pages,
+        &config.site,
+        &taxonomies,
+        &templates,
+        &rendered,
+        output_dir,
+    );
     thread::scope(|s| {
         let mut threads = Vec::with_capacity(num_threads);
         for chunk in pages.chunks(per_thread) {
