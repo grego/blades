@@ -139,6 +139,6 @@ const fn default_assets() -> Cow<'static, str> {
 }
 
 #[inline]
-const fn default_true() -> bool {
+pub(crate) const fn default_true() -> bool {
     true
 }

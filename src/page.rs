@@ -6,7 +6,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-use crate::config::Site;
+use crate::config::{default_true, Site};
 use crate::sources::{Parser, Source, Sources};
 use crate::tasks::render;
 use crate::taxonomies::{Classification, Taxonomies};
@@ -106,6 +106,9 @@ pub struct Page<'p> {
     #[serde(skip)]
     #[ramhorns(skip)]
     next: usize,
+    #[serde(skip, default = "default_true")]
+    #[ramhorns(skip)]
+    nonstandard_path: bool,
     /// Priority of this page in the sitemap
     #[serde(skip, default = "default_priority")]
     pub priority: f32,
@@ -142,7 +145,7 @@ pub struct Pages<'p>(Box<[Page<'p>]>);
 /// A single picture on a page.
 #[derive(Clone, Content, Deserialize, Serialize)]
 pub struct Picture<'p> {
-    /// An alternative text displayed when the image can't be loaded of for accessibility.
+    /// An alternative text displayed when the image can't be loaded or for accessibility.
     #[serde(borrow, default)]
     pub alt: Cow<'p, str>,
     /// An associated caption of the picture.
@@ -322,6 +325,7 @@ impl<'p> Page<'p> {
         if is_section || page_path.is_empty() || Path::new(page_path).is_absolute() {
             let path = &path[0..path.rfind(is_separator).unwrap_or_default()];
             page.path = Cow::const_str(path).into();
+            page.nonstandard_path = false;
         } else if page_path == "." {
             page.path = Cow::const_str("").into();
         }
@@ -384,6 +388,9 @@ impl<'p> Page<'p> {
         if self.is_section || !self.pictures.is_empty() {
             let mut path = output_dir.join(self.path.as_ref());
             path.push(self.slug.as_ref());
+            create_dir_all(path)
+        } else if self.nonstandard_path {
+            let path = output_dir.join(self.path.as_ref());
             create_dir_all(path)
         } else {
             Ok(())
@@ -588,6 +595,9 @@ impl<'p> Pages<'p> {
                     pages[j].next = j + 1;
                 }
             }
+
+            // Assign a unique identifier
+            pages[i].id = i;
         }
         Pages(pages.into())
     }
