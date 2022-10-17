@@ -25,8 +25,8 @@ cmark-syntax = "0.3"
 
 # Cargo doesn't support binary-only dependencies yet.
 toml = { version = "0.5.9", optional = true }
-clap = { version = "3.2", optional = true, default_features = false, features = ["std"] }
-clap_derive = { version = "3.2", optional = true }
+clap = { version = "4", optional = true, default_features = false, features = ["std", "help", "usage"] }
+clap_derive = { version = "4", optional = true }
 thiserror = { version = "1", optional = true }
 serde_json = { version = "1", optional = true }
 
