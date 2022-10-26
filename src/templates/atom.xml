@@ -23,10 +23,10 @@
     </entry>
     {{#pictures}}
     <entry>
-        <title>{{alt}}</title>
+        <title>{{caption}}</title>
         <link rel="alternate" href="{{permalink}}" />
         <id>{{#site}}{{url}}{{/site}}{{path}}{{#slug}}/{{slug}}{{/slug}}/{{pid}}</id>
-        <summary>{{caption}}</summary>
+        <summary>{{alt}}</summary>
         <content>{{summary}}</content>
         {{#taken}}<updated>{{y}}-{{m}}-{{d}}T{{H}}:{{M}}:{{S}}Z</updated>{{/taken}}
         {{^taken}}{{#date}}<updated>{{y}}-{{m}}-{{d}}T{{H}}:{{M}}:{{S}}Z</updated>{{/date}}{{/taken}}

@@ -19,9 +19,9 @@
             {{#date}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/date}}
         </item>
         {{#pictures}}<item>
-            <title>{{alt}}</title>
+            <title>{{caption}}</title>
             <link>{{permalink}}</link>
-            <description>{{caption}}</description>
+            <description>{{alt}}</description>
             {{#taken}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/taken}}
             {{^taken}}{{#date}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/date}}{{/taken}}
         </item>{{/pictures}}
