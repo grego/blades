@@ -16,16 +16,16 @@
 //! the `bin` feature gate, which is enabled by default. When using Blades as a library, they are not
 //! necessary, so it is recommended to import blades with `default_features = false`.
 #![warn(missing_docs)]
-mod config;
 mod page;
+mod render;
+mod site;
 mod sources;
-mod tasks;
 mod taxonomies;
 mod types;
 
-pub use config::Config;
 pub use page::{Context, Page, Pages, Picture};
+pub use render::render_meta;
+pub use site::Site;
 pub use sources::{Parser, Source, Sources};
-pub use tasks::{cleanup, colocate_assets, load_templates, render_meta};
 pub use taxonomies::{TaxonMeta, Taxonomies, Taxonomy};
-pub use types::{Ancestors, Any, DateTime, HashMap, MutSet};
+pub use types::{Ancestors, Any, DateTime, HashMap};

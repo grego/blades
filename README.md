@@ -18,7 +18,7 @@ content using the provided templates.
 Thanks to [zero-copy](https://serde.rs/lifetimes.html#borrowing-data-in-a-derived-impl) deserialization
 and the [Ramhorns](https://github.com/maciejhirsz/ramhorns) templating engine,
 it renders the whole site in milliseconds, possibly more than
-[10 times](https://github.com/grego/ssg-bench) faster than other generators like Hugo.
+[20 times](https://github.com/grego/ssg-bench) faster than other generators like Hugo.
 
 It's made for easy setup and use. A static site generator should be a no brainer.
 It uses [mustache](https://mustache.github.io/mustache.5.html) templates with extremely minimal

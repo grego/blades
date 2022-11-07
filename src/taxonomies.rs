@@ -6,9 +6,9 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-use crate::config::Site;
 use crate::page::{Context, Page, PageRef, Paginate, Pagination, Permalink};
-use crate::tasks::render;
+use crate::render::render;
+use crate::site::Site;
 use crate::types::HashMap;
 
 use arrayvec::ArrayVec;
@@ -22,6 +22,7 @@ use std::collections::BTreeMap;
 use std::fs::create_dir_all;
 use std::num::NonZeroUsize;
 use std::ops::{Deref, Range};
+use std::path::PathBuf;
 
 const DEFAULT_TEMPLATE: &str = "taxonomy.html";
 const DEFAULT_KEY_TEMPLATE: &str = "taxonomy_key.html";
@@ -224,10 +225,13 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
     }
 
     /// Render this taxonomy into the output directory specified by the config.
+    /// `buffer` is used to store the result before writing it to the disk and expected to be empty.
     #[inline]
     pub fn render(
         &self,
-        Context(all, site, classification, templates, rendered, output_dir): Context<'t, '_>,
+        Context(all, site, classification, templates, output_dir): Context<'t, '_>,
+        rendered: &mut HashMap<PathBuf, u32>,
+        buffer: &mut Vec<u8>,
     ) -> Result<(), Error> {
         let mut path = output_dir.join(self.slug);
         create_dir_all(&path)?;
@@ -242,16 +246,19 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         let template = templates
             .get(&self.taxonomy.template)
             .ok_or_else(|| Error::NotFound(self.taxonomy.template.as_ref().into()))?;
-        render(template, path, &contexted, rendered)
+        render(template, path, &contexted, rendered, buffer).map_err(Into::into)
     }
 
     /// Render one key of this taxonomy into the output directory specified by the config.
+    /// `buffer` is used to store the result before writing it to the disk and expected to be empty.
     #[inline]
     pub fn render_key(
         &self,
         title: &str,
         pages: &[PageLinked<'t, '_>],
-        Context(all, site, classification, templates, rendered, output_dir): Context<'t, '_>,
+        Context(all, site, classification, templates, output_dir): Context<'t, '_>,
+        rendered: &mut HashMap<PathBuf, u32>,
+        buffer: &mut Vec<u8>,
     ) -> Result<(), Error> {
         let mut output = output_dir.join(self.slug);
         output.push(title);
@@ -277,10 +284,11 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
             .get(&self.taxonomy.key_template)
             .ok_or_else(|| Error::NotFound(self.taxonomy.key_template.as_ref().into()))?;
         if by > 0 && pages.len() > by {
-            contexted.render_paginated(0, pages.len(), by, &mut output, template, rendered)
+            contexted.render_paginated(0..pages.len(), by, &mut output, template, rendered, buffer)
         } else {
-            render(template, output, &contexted, rendered)
+            render(template, output, &contexted, rendered, buffer)
         }
+        .map_err(Into::into)
     }
 }
 

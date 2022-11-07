@@ -6,11 +6,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-use crate::config::{default_true, Site};
+use crate::render::render;
+use crate::site::{default_true, Site};
 use crate::sources::{Parser, Source, Sources};
-use crate::tasks::render;
 use crate::taxonomies::{Classification, Taxonomies};
-use crate::types::{Ancestors, Any, DateTime, HashMap, MutSet};
+use crate::types::{Ancestors, Any, DateTime, HashMap};
 
 use beef::lean::Cow;
 use ramhorns::{
@@ -168,7 +168,6 @@ pub struct Context<'p, 'r>(
     pub &'r Site<'p>,
     pub &'r Classification<'p, 'r>,
     pub &'r Ramhorns,
-    pub &'r MutSet,
     pub &'r Path,
 );
 
@@ -269,13 +268,14 @@ pub(crate) trait Paginate: Content + Sized {
     /// Render `self` into separate pages where each can view just a subslice of `self`'s subpages.
     fn render_paginated(
         &self,
-        mut first: usize,
-        last: usize,
+        range: Range<usize>,
         by: usize,
         path: &mut PathBuf,
         tpl: &Template,
-        rendered: &MutSet,
-    ) -> Result<(), Error> {
+        rendered: &mut HashMap<PathBuf, u32>,
+        buffer: &mut Vec<u8>,
+    ) -> Result<(), io::Error> {
+        let (mut first, last) = (range.start, range.end);
         let count = last - first;
         let by = min(by, count);
         let len = count / by + ((count % by != 0) as usize);
@@ -284,13 +284,20 @@ pub(crate) trait Paginate: Content + Sized {
             &path,
             &self.paginate(first..(first + by), len, 1),
             rendered,
+            buffer,
         )?;
         for i in 0..len {
             path.pop();
             path.push((i + 1).to_string());
             path.set_extension("html");
             let end = min(first + by, last);
-            render(tpl, &path, &self.paginate(first..end, len, i + 1), rendered)?;
+            render(
+                tpl,
+                &path,
+                &self.paginate(first..end, len, i + 1),
+                rendered,
+                buffer,
+            )?;
             first = end;
         }
         Ok(())
@@ -398,10 +405,13 @@ impl<'p> Page<'p> {
     }
 
     /// Render the page to the output directory specified by the config.
+    /// `buffer` is used to store the result before writing it to the disk and expected to be empty.
     #[inline]
     pub fn render(
         &self,
-        Context(all, site, classification, templates, rendered, output_dir): Context<'p, '_>,
+        Context(all, site, classification, templates, output_dir): Context<'p, '_>,
+        rendered: &mut HashMap<PathBuf, u32>,
+        buffer: &mut Vec<u8>,
     ) -> Result<(), Error> {
         let mut output = output_dir.join(self.path.as_ref());
         output.push(self.slug.as_ref());
@@ -427,9 +437,9 @@ impl<'p> Page<'p> {
         let by = self.paginate_by.map(NonZeroUsize::get).unwrap_or(0);
         if by > 0 && self.pages.len() > by {
             let (start, end) = (self.pages.start, self.pages.end);
-            page.render_paginated(start, end, by, &mut output, template, rendered)?
+            page.render_paginated(start..end, by, &mut output, template, rendered, buffer)?
         } else if !self.pictures.is_empty() {
-            render(template, &output, &page, rendered)?;
+            render(template, &output, &page, rendered, buffer)?;
 
             if self.is_section {
                 output.pop();
@@ -456,17 +466,17 @@ impl<'p> Page<'p> {
                 };
                 output.push(pictures[i].pid.as_ref());
                 output.set_extension("html");
-                render(template, &output, &page, rendered)?;
+                render(template, &output, &page, rendered, buffer)?;
                 output.pop();
             }
         } else {
-            render(template, output, &page, rendered)?;
+            render(template, output, &page, rendered, buffer)?;
         }
 
         for path in self.alternative_paths.iter() {
             let mut output = output_dir.join(path);
             output.push("index.html");
-            render(template, output, &page, rendered)?;
+            render(template, output, &page, rendered, buffer)?;
         }
         Ok(())
     }

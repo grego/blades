@@ -8,19 +8,24 @@
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
 use blades::*;
 
+use beef::lean::Cow;
 use clap::Parser as ClapParser;
-use ramhorns::{Content, Template};
+use ramhorns::{Content, Ramhorns, Template};
+use serde::Deserialize;
+use serde_cmd::CmdBorrowed;
+
 use std::env::var;
 use std::ffi::OsStr;
-use std::fs::{create_dir_all, read_to_string, write};
-use std::io::{stdin, stdout, BufRead, BufReader, Lines, Write};
-use std::path::Path;
+use std::fs::{self, File};
+use std::io::{self, stdin, stdout, BufRead, BufReader, BufWriter, ErrorKind, Lines, Write};
+use std::path::{self, Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::time::{Instant, SystemTime};
 use std::{cmp, thread};
 use thiserror::Error;
 
 static CONFIG_FILE: &str = "Blades.toml";
+const BUFFER_SIZE: usize = 16384;
 
 #[derive(clap_derive::Parser)]
 #[clap(version, about)]
@@ -50,6 +55,83 @@ enum Cmd {
     Lazy,
 }
 
+/// Main configuration where all the site settings are set.
+/// Blades deserializes it from a given TOML file.
+#[derive(Default, Deserialize)]
+struct Config<'c> {
+    /// The directory of the content
+    #[serde(borrow, default = "default_content_dir")]
+    content_dir: Cow<'c, str>,
+    /// The directory where the output should be rendered to
+    #[serde(borrow, default = "default_output_dir")]
+    output_dir: Cow<'c, str>,
+    /// The directory where the themes are
+    #[serde(borrow, default = "default_theme_dir")]
+    theme_dir: Cow<'c, str>,
+    /// Name of the directory of a theme this site is using, empty if none.
+    #[serde(borrow, default)]
+    theme: Cow<'c, str>,
+    /// Taxonomies of the site
+    #[serde(default)]
+    taxonomies: HashMap<&'c str, TaxonMeta<'c>>,
+    /// Generate taxonomies not specified in the config?
+    #[serde(default = "default_true")]
+    implicit_taxonomies: bool,
+
+    /// Information about the site usable in templates
+    #[serde(flatten)]
+    site: Site<'c>,
+
+    /// Configuration of plugins for building the site.
+    #[serde(default)]
+    plugins: Plugins<'c>,
+}
+
+/// Plugins to use when building the site.
+#[derive(Default, Deserialize)]
+struct Plugins<'p> {
+    /// Plugins to get the input from, in the form of serialized list of pages.
+    #[serde(borrow, default)]
+    input: Box<[CmdBorrowed<'p>]>,
+    /// Plugins that transform the serialized list of pages.
+    #[serde(borrow, default)]
+    transform: Box<[CmdBorrowed<'p>]>,
+    /// Plugins that get the serialized list of pages and might do something with it.
+    #[serde(borrow, default)]
+    output: Box<[CmdBorrowed<'p>]>,
+    /// Plugins that transform the content of pages.
+    /// They are identified by their name and must be enabled for each page.
+    #[serde(borrow, default)]
+    content: HashMap<&'p str, CmdBorrowed<'p>>,
+    /// A list of names of content plugins that should be applied to every page.
+    #[serde(default)]
+    default: Box<[&'p str]>,
+}
+
+#[inline]
+const fn default_content_dir() -> Cow<'static, str> {
+    Cow::const_str("content")
+}
+
+#[inline]
+const fn default_output_dir() -> Cow<'static, str> {
+    Cow::const_str("public")
+}
+
+#[inline]
+const fn default_theme_dir() -> Cow<'static, str> {
+    Cow::const_str("themes")
+}
+
+#[inline]
+const fn default_true() -> bool {
+    true
+}
+
+/// Where the templates are located, relative to the site directrory.
+static TEMPLATE_DIR: &str = "templates";
+/// Where the assets will be copied from, relative to the site directrory.
+static ASSET_SRC_DIR: &str = "assets";
 static FILELIST: &str = ".blades";
 static OLD_THEME: &str = ".bladestheme";
 
@@ -223,13 +305,10 @@ fn init() -> Result<(), Error> {
     let title = next_line(&mut lines, "Name:")?;
     let author = next_line(&mut lines, "Author:")?;
     let config = MockConfig { title, author };
-    Template::new(include_str!("templates/Blades.toml"))
-        .unwrap()
-        .render_to_file(CONFIG_FILE, &config)
-        .unwrap();
-    write(".watch.toml", include_str!("templates/.watch.toml"))?;
-    create_dir_all("content")?;
-    create_dir_all("themes").map_err(Into::into)
+    Template::new(include_str!("templates/Blades.toml"))?.render_to_file(CONFIG_FILE, &config)?;
+    fs::write(".watch.toml", include_str!("templates/.watch.toml"))?;
+    fs::create_dir_all("content")?;
+    fs::create_dir_all("themes").map_err(Into::into)
 }
 
 /// Create a new page and edit it if the EDITOR variable is set
@@ -242,7 +321,7 @@ fn new_page(config: &Config) -> Result<(), Error> {
         &mut lines,
         "Path (relative to the content directory):",
     )?);
-    create_dir_all(&path)?;
+    fs::create_dir_all(&path)?;
 
     let date: chrono::DateTime<chrono::Utc> = SystemTime::now().into();
     let date = date.format("%Y-%m-%d").to_string();
@@ -262,10 +341,7 @@ fn new_page(config: &Config) -> Result<(), Error> {
         }
     }
     let page = MockPage { title, slug, date };
-    Template::new(include_str!("templates/page.toml"))
-        .unwrap()
-        .render_to_file(&path, &page)
-        .unwrap();
+    Template::new(include_str!("templates/page.toml"))?.render_to_file(&path, &page)?;
     println!("{:?} created", &path);
 
     if let Ok(editor) = var("EDITOR") {
@@ -273,6 +349,107 @@ fn new_page(config: &Config) -> Result<(), Error> {
     } else {
         println!("Set the EDITOR environment variable to edit new pages immediately");
     }
+    Ok(())
+}
+
+fn copy_dir(src: &mut PathBuf, dest: &mut PathBuf) -> Result<(), io::Error> {
+    let iter = match fs::read_dir(&src) {
+        Ok(iter) => iter,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e),
+    };
+    fs::create_dir_all(&dest)?;
+    for entry in iter.filter_map(Result::ok) {
+        let file_type = entry.file_type()?;
+        let file_name = entry.file_name();
+        src.push(&file_name);
+        dest.push(&file_name);
+        if file_type.is_file() {
+            fs::copy(&src, &dest)?;
+        } else if file_type.is_dir() {
+            copy_dir(src, dest)?;
+        }
+        src.pop();
+        dest.pop();
+    }
+    Ok(())
+}
+
+/// Place assets located in the `assets` directory or in the `assets` subdirectory of the theme,
+/// if used, into a dedicated subdirectory of the output directory specified in the config
+/// (defaults to `assets`, too).
+fn colocate_assets(config: &Config) -> Result<(), io::Error> {
+    let mut output = Path::new(config.output_dir.as_ref()).join(config.site.assets.as_ref());
+    match fs::remove_dir_all(&output) {
+        Ok(_) => Ok(()),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+    }?;
+    let mut src = PathBuf::with_capacity(64);
+    if !config.theme.is_empty() {
+        src.push(config.theme_dir.as_ref());
+        src.push(config.theme.as_ref());
+        src.push(ASSET_SRC_DIR);
+        copy_dir(&mut src, &mut output)?;
+        src.clear();
+    }
+    src.push(ASSET_SRC_DIR);
+    copy_dir(&mut src, &mut output)
+}
+
+/// Load the templates from the directories specified by the config.
+fn load_templates(config: &Config) -> Result<Ramhorns, ramhorns::Error> {
+    fs::create_dir_all(TEMPLATE_DIR)?;
+    let mut templates = Ramhorns::from_folder(TEMPLATE_DIR)?;
+    if !config.theme.is_empty() {
+        let mut theme_path = Path::new(config.theme_dir.as_ref()).join(config.theme.as_ref());
+        theme_path.push(TEMPLATE_DIR);
+        if theme_path.exists() {
+            templates.extend_from_folder(theme_path)?;
+        }
+    }
+    Ok(templates)
+}
+
+/// Delete all the pages that were present in the previous render, but not the current one.
+/// Then, write all the paths that were rendered to the file `filelist`
+fn cleanup(mut rendered: HashMap<PathBuf, u32>, filelist: &str) -> Result<(), io::Error> {
+    if let Ok(f) = File::open(filelist) {
+        BufReader::new(f).lines().try_for_each(|filename| {
+            let filename = filename?;
+            if !rendered.contains_key(Path::new(&filename)) {
+                // Every directory has its index rendered
+                if let Some(dir) = filename.strip_suffix("index.html") {
+                    if dir.ends_with(path::is_separator) {
+                        return match fs::remove_dir_all(dir) {
+                            Ok(_) => Ok(()),
+                            Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+                            Err(e) => Err(e),
+                        };
+                    }
+                }
+                match fs::remove_file(&filename) {
+                    Ok(_) => Ok(()),
+                    Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+                    Err(e) => Err(e),
+                }
+            } else {
+                Ok(())
+            }
+        })?;
+    };
+
+    let f = File::create(filelist)?;
+    let mut f = BufWriter::new(f);
+    for (path, count) in rendered.drain() {
+        // It was already checked that the paths contain valid UTF-8
+        let path = path.into_os_string().into_string().unwrap();
+        writeln!(&mut f, "{}", path)?;
+        if count > 1 {
+            println!("{} paths render to {}", count, path);
+        }
+    }
+
     Ok(())
 }
 
@@ -391,39 +568,41 @@ fn build(config: &Config) -> Result<(), Error> {
         config.implicit_taxonomies,
     );
 
-    let rendered = MutSet::default();
     let output_dir = config.output_dir.as_ref().as_ref();
-    let context = Context(
-        &pages,
-        &config.site,
-        &taxonomies,
-        &templates,
-        &rendered,
-        output_dir,
-    );
-    thread::scope(|s| {
+    let context = Context(&pages, &config.site, &taxonomies, &templates, output_dir);
+    let rendered = thread::scope(|s| {
         let mut threads = Vec::with_capacity(num_threads);
         for chunk in pages.chunks(per_thread) {
             threads.push(s.spawn(|| {
+                let mut rendered = HashMap::default();
+                let mut buffer = Vec::with_capacity(BUFFER_SIZE);
                 for page in chunk.iter() {
-                    page.render(context)?;
+                    page.render(context, &mut rendered, &mut buffer)?;
                 }
-                Ok::<_, Error>(())
+                Ok::<_, Error>(rendered)
             }));
         }
 
+        let mut rendered = HashMap::default();
+        let mut buffer = Vec::with_capacity(BUFFER_SIZE);
         for (_, taxonomy) in taxonomies.iter() {
-            taxonomy.render(context)?;
+            taxonomy.render(context, &mut rendered, &mut buffer)?;
             for (n, l) in taxonomy.keys().iter() {
-                taxonomy.render_key(n, l, context)?;
+                taxonomy.render_key(n, l, context, &mut rendered, &mut buffer)?;
             }
         }
-        render_meta(&pages, &config.site, &taxonomies, output_dir)?;
+        render_meta(&pages, &config.site, &taxonomies, output_dir, &mut buffer)?;
 
         for thread in threads.drain(..) {
-            thread.join().unwind()?;
+            let mut other = thread.join().unwind()?;
+            for (path, count) in other.drain() {
+                rendered
+                    .entry(path)
+                    .and_modify(|c| *c += count)
+                    .or_default();
+            }
         }
-        Ok::<_, Error>(())
+        Ok::<_, Error>(rendered)
     })?;
 
     cleanup(rendered, FILELIST)?;
@@ -484,12 +663,12 @@ fn main() {
         Some(Cmd::Colocate) => colocate_assets(&config).map_err(Into::into),
         Some(Cmd::All) => build(&config).and_then(|_| colocate_assets(&config).map_err(Into::into)),
         Some(Cmd::Lazy) | None => build(&config).and_then(|_| {
-            if read_to_string(OLD_THEME)
+            if fs::read_to_string(OLD_THEME)
                 .map(|old| old != config.theme)
                 .unwrap_or(true)
             {
                 colocate_assets(&config)?;
-                write(OLD_THEME, config.theme.as_ref()).map_err(Into::into)
+                fs::write(OLD_THEME, config.theme.as_ref()).map_err(Into::into)
             } else {
                 Ok(())
             }

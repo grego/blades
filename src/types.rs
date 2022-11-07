@@ -14,16 +14,11 @@ use ramhorns::{Content, Section};
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 
 use std::borrow::Borrow;
-use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
-use std::path::{is_separator, PathBuf};
-use std::sync::Mutex;
+use std::path::is_separator;
 use std::time::SystemTime;
-
-/// A set of all rendered paths. Behind a mutex, so it can be written from multiple threads.
-pub type MutSet<T = PathBuf> = Mutex<HashSet<T, fnv::FnvBuildHasher>>;
 
 /// A hash map wrapper that can render fields directly by the hash.
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
@@ -35,8 +30,8 @@ pub struct HashMap<K: Hash + Eq, V>(pub(crate) hashbrown::HashMap<K, V, fnv::Fnv
 #[serde(transparent)]
 pub struct DateTime(pub NaiveDateTime);
 
-/// A wrapper around a `str` representing path, used to derive `Content` implementation
-/// that acts like an iterator over the path segmets.
+/// A wrapper around a `str` representing a path, `Content` implementation
+/// acts like an iterator over the path segmets.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(transparent)]
 pub struct Ancestors<'a>(#[serde(borrow)] pub Cow<'a, str>);
