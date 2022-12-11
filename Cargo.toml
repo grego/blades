@@ -1,6 +1,6 @@
 [package]
 name = "blades"
-version = "0.5.0-alpha"
+version = "0.5.0"
 authors = ["Maroš Grego <maros@grego.site>"]
 edition = "2021"
 description = "Blazing fast dead simple static site generator"
@@ -20,7 +20,7 @@ chrono = { version = "^0.4.19", features = ["std", "serde"], default_features = 
 fnv = "1.0"
 hashbrown = { version = "0.12", features = ["inline-more", "serde"], default_features = false }
 pulldown-cmark = { version = "0.9", default_features = false }
-cmark-syntax = "0.3"
+cmark-syntax = "0.4"
 
 # Cargo doesn't support binary-only dependencies yet.
 toml = { version = "0.5.9", optional = true }

@@ -404,7 +404,10 @@ impl<'de> Deserialize<'de> for DateTime {
 
             fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
                 v.parse::<NaiveDateTime>()
-                    .or_else(|_| v.parse::<NaiveDate>().map(|d| d.and_hms(0, 0, 0)))
+                    .or_else(|_| {
+                        v.parse::<NaiveDate>()
+                            .map(|d| d.and_hms_opt(0, 0, 0).unwrap())
+                    })
                     .or_else(|_| NaiveDateTime::parse_from_str(v, "%F %T%.f"))
                     .or_else(|_| v.parse::<CDateTime<FixedOffset>>().map(|d| d.naive_utc()))
                     .map(DateTime)
