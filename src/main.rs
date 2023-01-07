@@ -9,12 +9,11 @@
 use blades::*;
 
 use beef::lean::Cow;
-use clap::Parser as ClapParser;
 use ramhorns::{Content, Ramhorns, Template};
 use serde::Deserialize;
 use serde_cmd::CmdBorrowed;
 
-use std::env::var;
+use std::env;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, stdin, stdout, BufRead, BufReader, BufWriter, ErrorKind, Lines, Write};
@@ -24,35 +23,39 @@ use std::time::{Instant, SystemTime};
 use std::{cmp, thread};
 use thiserror::Error;
 
+static HELP: &str = r#"Blazing fast dead simple static site generator
+
+Usage: blades [COMMAND]
+
+Commands:
+  init      Initialize the site in the current directory, creating the basic files and folders
+  new       Create a new page
+  build     Build the site according to config, content, templates and themes in the current directory
+  colocate  Move assets from the "assets" directory and from the theme, if one is used, into the output directory
+  all       Build the site and colocate the assets
+  lazy      Build the site and (colocate assets only if the theme was switched) [default]
+  help      Print this message
+  version   Print version information
+
+Environment variables:
+  BLADES_CONFIG   File to read the site config from [default: Blades.toml]
+"#;
+static VAR_CONFIG: &str = "BLADES_CONFIG";
 static CONFIG_FILE: &str = "Blades.toml";
+
 const BUFFER_SIZE: usize = 16384;
 
-#[derive(clap_derive::Parser)]
-#[clap(version, about)]
-/// Blazing fast Dead simple Static site generator
-struct Opt {
-    /// File to read the site config from
-    #[clap(short, long, default_value = CONFIG_FILE)]
-    config: String,
-    #[clap(subcommand)]
-    cmd: Option<Cmd>,
-}
-
-#[derive(PartialEq, clap_derive::Subcommand)]
+#[derive(PartialEq, Eq)]
 enum Cmd {
-    /// Initialise the site in the current directory, creating the basic files and folders
     Init,
-    /// Start creating a new page
     New,
-    /// Build the site according to config, content, templates and themes in the current directory
     Build,
-    /// Move the assets from the "assets" directory and from the theme, if one is used,
-    /// into the output directory
     Colocate,
-    /// Build the site and colocate the assets
     All,
-    /// Build the site and (colocate assets only if the theme was switched) [default]
     Lazy,
+    Help,
+    Version,
+    Invalid,
 }
 
 /// Main configuration where all the site settings are set.
@@ -344,7 +347,7 @@ fn new_page(config: &Config) -> Result<(), Error> {
     Template::new(include_str!("templates/page.toml"))?.render_to_file(&path, &page)?;
     println!("{:?} created", &path);
 
-    if let Ok(editor) = var("EDITOR") {
+    if let Ok(editor) = env::var("EDITOR") {
         Command::new(editor).arg(&path).status()?;
     } else {
         println!("Set the EDITOR environment variable to edit new pages immediately");
@@ -628,41 +631,82 @@ fn build(config: &Config) -> Result<(), Error> {
     Ok(())
 }
 
+fn get_command() -> Cmd {
+    let mut args = env::args().skip(1);
+    let command = match args.next().as_deref() {
+        Some("init") => Cmd::Init,
+        Some("new") => Cmd::New,
+        Some("build") => Cmd::Build,
+        Some("colocate") => Cmd::Colocate,
+        Some("all") => Cmd::All,
+        Some("lazy") | None => Cmd::Lazy,
+        Some("help") => Cmd::Help,
+        Some("version") => Cmd::Version,
+        _ => Cmd::Invalid,
+    };
+    if args.next().is_some() {
+        Cmd::Invalid
+    } else {
+        command
+    }
+}
+
 fn main() {
-    let opt: Opt = ClapParser::parse();
+    let cmd = get_command();
+    let config_name: Cow<str> = env::var(VAR_CONFIG)
+        .map(Into::into)
+        .unwrap_or_else(|_| CONFIG_FILE.into());
+
     let start = Instant::now();
 
-    let config_file = match std::fs::read_to_string(&opt.config) {
+    match cmd {
+        Cmd::Help => {
+            print!("{}", HELP);
+            return;
+        }
+        Cmd::Version => {
+            println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+            return;
+        }
+        Cmd::Invalid => {
+            eprintln!("Error: invalid arguments");
+            print!("{}", HELP);
+            return;
+        }
+        _ => {}
+    }
+
+    let config_file = match std::fs::read_to_string(config_name.as_ref()) {
         Ok(cf) => cf,
         // Don't need a config file for initialisation.
-        Err(_) if opt.cmd == Some(Cmd::Init) => "".to_string(),
+        Err(_) if cmd == Cmd::Init => "".to_string(),
         Err(e) => {
-            eprintln!("Can't read {}: {}", &opt.config, e);
+            eprintln!("Can't read {}: {}", config_name, e);
             return;
         }
     };
     let config: Config = match toml::from_str(&config_file) {
         Ok(cfg) => cfg,
         Err(e) => {
-            eprintln!("Error parsing config file {}: {}", &opt.config, e);
+            eprintln!("Error parsing config file {}: {}", config_name, e);
             return;
         }
     };
 
-    if let Err(e) = match opt.cmd {
-        Some(Cmd::Init) => {
+    if let Err(e) = match cmd {
+        Cmd::Init => {
             if config_file.is_empty() {
                 init()
             } else {
-                println!("Config file {} already present; exiting", &opt.config);
+                println!("Config file {} already present; exiting", &config_name);
                 Ok(())
             }
         }
-        Some(Cmd::New) => new_page(&config),
-        Some(Cmd::Build) => build(&config),
-        Some(Cmd::Colocate) => colocate_assets(&config).map_err(Into::into),
-        Some(Cmd::All) => build(&config).and_then(|_| colocate_assets(&config).map_err(Into::into)),
-        Some(Cmd::Lazy) | None => build(&config).and_then(|_| {
+        Cmd::New => new_page(&config),
+        Cmd::Build => build(&config),
+        Cmd::Colocate => colocate_assets(&config).map_err(Into::into),
+        Cmd::All => build(&config).and_then(|_| colocate_assets(&config).map_err(Into::into)),
+        Cmd::Lazy => build(&config).and_then(|_| {
             if fs::read_to_string(OLD_THEME)
                 .map(|old| old != config.theme)
                 .unwrap_or(true)
@@ -673,9 +717,13 @@ fn main() {
                 Ok(())
             }
         }),
+        _ => {
+            unreachable!()
+        }
     } {
-        eprintln!("{}", e)
-    } else if !(opt.cmd == Some(Cmd::Init) || opt.cmd == Some(Cmd::New)) {
-        println!("Done in {}ms.", start.elapsed().as_micros() as f64 / 1000.0)
+        eprintln!("{}", e);
+        return;
     }
+
+    println!("Done in {}ms.", start.elapsed().as_micros() as f64 / 1000.0)
 }
