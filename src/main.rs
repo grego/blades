@@ -13,6 +13,7 @@ use ramhorns::{Content, Ramhorns, Template};
 use serde::Deserialize;
 use serde_cmd::CmdBorrowed;
 
+use std::collections::BTreeSet;
 use std::env;
 use std::ffi::OsStr;
 use std::fs::{self, File};
@@ -415,11 +416,18 @@ fn load_templates(config: &Config) -> Result<Ramhorns, ramhorns::Error> {
 
 /// Delete all the pages that were present in the previous render, but not the current one.
 /// Then, write all the paths that were rendered to the file `filelist`
-fn cleanup(mut rendered: HashMap<PathBuf, u32>, filelist: &str) -> Result<(), io::Error> {
+fn cleanup(mut rendered: Vec<PathBuf>, filelist: &str) -> Result<(), io::Error> {
+    let mut set = BTreeSet::new();
+    for path in rendered.drain(..) {
+        if let Some(p) = set.replace(path) {
+            println!("Warning: more paths render to {}", p.to_string_lossy());
+        }
+    }
+
     if let Ok(f) = File::open(filelist) {
         BufReader::new(f).lines().try_for_each(|filename| {
             let filename = filename?;
-            if !rendered.contains_key(Path::new(&filename)) {
+            if !set.contains(Path::new(&filename)) {
                 // Every directory has its index rendered
                 if let Some(dir) = filename.strip_suffix("index.html") {
                     if dir.ends_with(path::is_separator) {
@@ -443,13 +451,10 @@ fn cleanup(mut rendered: HashMap<PathBuf, u32>, filelist: &str) -> Result<(), io
 
     let f = File::create(filelist)?;
     let mut f = BufWriter::new(f);
-    for (path, count) in rendered.drain() {
+    for path in rendered.drain(..) {
         // It was already checked that the paths contain valid UTF-8
         let path = path.into_os_string().into_string().unwrap();
         writeln!(&mut f, "{}", path)?;
-        if count > 1 {
-            println!("{} paths render to {}", count, path);
-        }
     }
 
     Ok(())
@@ -576,7 +581,7 @@ fn build(config: &Config) -> Result<(), Error> {
         let mut threads = Vec::with_capacity(num_threads);
         for chunk in pages.chunks(per_thread) {
             threads.push(s.spawn(|| {
-                let mut rendered = HashMap::default();
+                let mut rendered = Vec::with_capacity(2 * per_thread);
                 let mut buffer = Vec::with_capacity(BUFFER_SIZE);
                 for page in chunk.iter() {
                     page.render(context, &mut rendered, &mut buffer)?;
@@ -585,7 +590,12 @@ fn build(config: &Config) -> Result<(), Error> {
             }));
         }
 
-        let mut rendered = HashMap::default();
+        let tax_count = taxonomies.len()
+            + taxonomies
+                .iter()
+                .map(|(_, t)| t.keys().len())
+                .sum::<usize>();
+        let mut rendered = Vec::with_capacity(tax_count + 2 * pages.len());
         let mut buffer = Vec::with_capacity(BUFFER_SIZE);
         for (_, taxonomy) in taxonomies.iter() {
             taxonomy.render(context, &mut rendered, &mut buffer)?;
@@ -597,12 +607,7 @@ fn build(config: &Config) -> Result<(), Error> {
 
         for thread in threads.drain(..) {
             let mut other = thread.join().unwind()?;
-            for (path, count) in other.drain() {
-                rendered
-                    .entry(path)
-                    .and_modify(|c| *c += count)
-                    .or_default();
-            }
+            rendered.append(&mut other);
         }
         Ok::<_, Error>(rendered)
     })?;

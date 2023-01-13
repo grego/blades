@@ -9,7 +9,7 @@
 use crate::page::{Page, PageList};
 use crate::site::Site;
 use crate::taxonomies::{Classification, TaxonList};
-use crate::types::{DateTime, HashMap};
+use crate::types::DateTime;
 
 use std::fs;
 use std::io;
@@ -22,7 +22,7 @@ pub(crate) fn render<P, C>(
     template: &Template,
     path: P,
     content: &C,
-    rendered: &mut HashMap<PathBuf, u32>,
+    rendered: &mut Vec<PathBuf>,
     buffer: &mut Vec<u8>,
 ) -> Result<(), io::Error>
 where
@@ -34,8 +34,7 @@ where
     let _ = template.render_to_writer(buffer, content);
     fs::write(&path, &buffer)?;
     buffer.clear();
-    let count = rendered.entry(path).or_default();
-    *count += 1;
+    rendered.push(path);
     Ok(())
 }
 

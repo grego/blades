@@ -272,7 +272,7 @@ pub(crate) trait Paginate: Content + Sized {
         by: usize,
         path: &mut PathBuf,
         tpl: &Template,
-        rendered: &mut HashMap<PathBuf, u32>,
+        rendered: &mut Vec<PathBuf>,
         buffer: &mut Vec<u8>,
     ) -> Result<(), io::Error> {
         let (mut first, last) = (range.start, range.end);
@@ -410,7 +410,7 @@ impl<'p> Page<'p> {
     pub fn render(
         &self,
         Context(all, site, classification, templates, output_dir): Context<'p, '_>,
-        rendered: &mut HashMap<PathBuf, u32>,
+        rendered: &mut Vec<PathBuf>,
         buffer: &mut Vec<u8>,
     ) -> Result<(), Error> {
         let mut output = output_dir.join(self.path.as_ref());

@@ -230,7 +230,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
     pub fn render(
         &self,
         Context(all, site, classification, templates, output_dir): Context<'t, '_>,
-        rendered: &mut HashMap<PathBuf, u32>,
+        rendered: &mut Vec<PathBuf>,
         buffer: &mut Vec<u8>,
     ) -> Result<(), Error> {
         let mut path = output_dir.join(self.slug);
@@ -257,7 +257,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         title: &str,
         pages: &[PageLinked<'t, '_>],
         Context(all, site, classification, templates, output_dir): Context<'t, '_>,
-        rendered: &mut HashMap<PathBuf, u32>,
+        rendered: &mut Vec<PathBuf>,
         buffer: &mut Vec<u8>,
     ) -> Result<(), Error> {
         let mut output = output_dir.join(self.slug);
