@@ -309,7 +309,6 @@ fn init() -> Result<(), Error> {
     let author = next_line(&mut lines, "Author:")?;
     let config = MockConfig { title, author };
     Template::new(include_str!("templates/Blades.toml"))?.render_to_file(CONFIG_FILE, &config)?;
-    fs::write(".watch.toml", include_str!("templates/.watch.toml"))?;
     fs::create_dir_all("content")?;
     fs::create_dir_all("themes").map_err(Into::into)
 }
