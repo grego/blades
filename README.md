@@ -65,6 +65,11 @@ cargo install --path .
 ```
 
 ## macOS
+Using the package manager [Homebrew](https://www.brew.sh)
+```bash
+brew install blades
+```
+
 Using the package manager [MacPorts](https://www.macports.org)
 ```bash
 sudo port install blades
