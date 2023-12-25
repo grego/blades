@@ -6,11 +6,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Blades.  If not, see <http://www.gnu.org/licenses/>
-use crate::config::Config;
+use crate::render::render;
+use crate::site::{default_true, Site};
 use crate::sources::{Parser, Source, Sources};
-use crate::tasks::render;
 use crate::taxonomies::{Classification, Taxonomies};
-use crate::types::{Ancestors, Any, DateTime, HashMap, MutSet};
+use crate::types::{Ancestors, Any, DateTime, HashMap};
 
 use beef::lean::Cow;
 use ramhorns::{
@@ -106,6 +106,9 @@ pub struct Page<'p> {
     #[serde(skip)]
     #[ramhorns(skip)]
     next: usize,
+    #[serde(skip, default = "default_true")]
+    #[ramhorns(skip)]
+    nonstandard_path: bool,
     /// Priority of this page in the sitemap
     #[serde(skip, default = "default_priority")]
     pub priority: f32,
@@ -142,7 +145,7 @@ pub struct Pages<'p>(Box<[Page<'p>]>);
 /// A single picture on a page.
 #[derive(Clone, Content, Deserialize, Serialize)]
 pub struct Picture<'p> {
-    /// An alternative text displayed when the image can't be loaded of for accessibility.
+    /// An alternative text displayed when the image can't be loaded or for accessibility.
     #[serde(borrow, default)]
     pub alt: Cow<'p, str>,
     /// An associated caption of the picture.
@@ -157,6 +160,16 @@ pub struct Picture<'p> {
     /// Date and time of when the image was taken.
     pub taken: Option<DateTime>,
 }
+
+/// Whole context for rendering the site
+#[derive(Clone, Copy)]
+pub struct Context<'p, 'r>(
+    pub &'r Pages<'p>,
+    pub &'r Site<'p>,
+    pub &'r Classification<'p, 'r>,
+    pub &'r Ramhorns,
+    pub &'r Path,
+);
 
 /// Page bundled with references to its subpages and subsections for rendering
 #[derive(Clone, Content)]
@@ -182,7 +195,7 @@ struct PageContext<'p, 'r> {
     index: PageRef<'p, 'r>,
     pagination: Option<Pagination>,
     permalink: Permalink<'p, 'r>,
-    site: &'r Config<'p>,
+    site: &'r Site<'p>,
     classification: &'r Classification<'p, 'r>,
     /// Always true, because this is the current page
     active: Active,
@@ -225,7 +238,7 @@ struct PictureView<'p, 'r> {
     next: PictureRef<'p, 'r>,
     parent: PageRef<'p, 'r>,
     index: PageRef<'p, 'r>,
-    site: &'r Config<'p>,
+    site: &'r Site<'p>,
     classification: &'r Classification<'p, 'r>,
 }
 
@@ -255,13 +268,14 @@ pub(crate) trait Paginate: Content + Sized {
     /// Render `self` into separate pages where each can view just a subslice of `self`'s subpages.
     fn render_paginated(
         &self,
-        mut first: usize,
-        last: usize,
+        range: Range<usize>,
         by: usize,
         path: &mut PathBuf,
         tpl: &Template,
-        rendered: &MutSet,
-    ) -> Result<(), Error> {
+        rendered: &mut Vec<PathBuf>,
+        buffer: &mut Vec<u8>,
+    ) -> Result<(), io::Error> {
+        let (mut first, last) = (range.start, range.end);
         let count = last - first;
         let by = min(by, count);
         let len = count / by + ((count % by != 0) as usize);
@@ -270,13 +284,20 @@ pub(crate) trait Paginate: Content + Sized {
             &path,
             &self.paginate(first..(first + by), len, 1),
             rendered,
+            buffer,
         )?;
         for i in 0..len {
             path.pop();
             path.push((i + 1).to_string());
             path.set_extension("html");
             let end = min(first + by, last);
-            render(tpl, &path, &self.paginate(first..end, len, i + 1), rendered)?;
+            render(
+                tpl,
+                &path,
+                &self.paginate(first..end, len, i + 1),
+                rendered,
+                buffer,
+            )?;
             first = end;
         }
         Ok(())
@@ -289,7 +310,6 @@ impl<'p> Page<'p> {
     pub fn new<P: Parser>(
         source: &'p Source<P>,
         data: &'p Sources<P>,
-        config: &Config,
     ) -> Result<Self, (P::Error, Box<str>)> {
         let path = std::str::from_utf8(&data.data[source.path.clone()]).unwrap();
         let mut page = source
@@ -302,15 +322,8 @@ impl<'p> Page<'p> {
         page.pages = source.pages.clone();
         page.subsections = source.subsections.clone();
         page.parent = source.parent;
-        if config.dates_of_creation {
-            page.date = page.date.or_else(|| source.date.map(|d| d.into()));
-        }
+        page.date = page.date.or_else(|| source.date.map(|d| d.into()));
 
-        // The path is already ensured to be valid UTF-8
-        let path = path
-            .strip_prefix(config.content_dir.as_ref())
-            .unwrap_or(path);
-        let path = path.strip_prefix(is_separator).unwrap_or(path);
         if is_section || page.slug.is_empty() || page.slug.contains(is_separator) {
             let slug = path.rsplit(is_separator).next().unwrap_or_default();
             page.slug = Cow::const_str(slug);
@@ -319,6 +332,7 @@ impl<'p> Page<'p> {
         if is_section || page_path.is_empty() || Path::new(page_path).is_absolute() {
             let path = &path[0..path.rfind(is_separator).unwrap_or_default()];
             page.path = Cow::const_str(path).into();
+            page.nonstandard_path = false;
         } else if page_path == "." {
             page.path = Cow::const_str("").into();
         }
@@ -344,7 +358,7 @@ impl<'p> Page<'p> {
     fn in_context<'r>(
         &'r self,
         all: &'r [Self],
-        site: &'r Config<'p>,
+        site: &'r Site<'p>,
         classification: &'r Classification<'p, 'r>,
     ) -> PageContext<'p, 'r> {
         PageContext {
@@ -370,8 +384,8 @@ impl<'p> Page<'p> {
 
     /// If the page is section, create a directory where it will be rendered to.
     /// Also creates the directories specified in `alternative_paths`.
-    pub fn create_directory(&self, config: &Config) -> Result<(), io::Error> {
-        let output_dir = Path::new(config.output_dir.as_ref());
+    pub fn create_directory<P: AsRef<Path>>(&self, output_dir: P) -> Result<(), io::Error> {
+        let output_dir = output_dir.as_ref();
 
         for path in self.alternative_paths.iter() {
             let path = output_dir.join(path);
@@ -382,22 +396,23 @@ impl<'p> Page<'p> {
             let mut path = output_dir.join(self.path.as_ref());
             path.push(self.slug.as_ref());
             create_dir_all(path)
+        } else if self.nonstandard_path {
+            let path = output_dir.join(self.path.as_ref());
+            create_dir_all(path)
         } else {
             Ok(())
         }
     }
 
     /// Render the page to the output directory specified by the config.
+    /// `buffer` is used to store the result before writing it to the disk and expected to be empty.
     #[inline]
     pub fn render(
         &self,
-        all: &Pages,
-        templates: &Ramhorns,
-        config: &Config<'p>,
-        classification: &Classification<'p, '_>,
-        rendered: &MutSet,
+        Context(all, site, classification, templates, output_dir): Context<'p, '_>,
+        rendered: &mut Vec<PathBuf>,
+        buffer: &mut Vec<u8>,
     ) -> Result<(), Error> {
-        let output_dir = Path::new(config.output_dir.as_ref());
         let mut output = output_dir.join(self.path.as_ref());
         output.push(self.slug.as_ref());
         if self.is_section {
@@ -418,13 +433,13 @@ impl<'p> Page<'p> {
             .get(template)
             .ok_or_else(|| Error::NotFound(template.as_ref().into()))?;
 
-        let page = self.in_context(all, config, classification);
+        let page = self.in_context(all, site, classification);
         let by = self.paginate_by.map(NonZeroUsize::get).unwrap_or(0);
         if by > 0 && self.pages.len() > by {
             let (start, end) = (self.pages.start, self.pages.end);
-            page.render_paginated(start, end, by, &mut output, template, rendered)?
+            page.render_paginated(start..end, by, &mut output, template, rendered, buffer)?
         } else if !self.pictures.is_empty() {
-            render(template, &output, &page, rendered)?;
+            render(template, &output, &page, rendered, buffer)?;
 
             if self.is_section {
                 output.pop();
@@ -441,27 +456,27 @@ impl<'p> Page<'p> {
             let last = pictures.len() - 1;
             for i in 0..=last {
                 let page = PictureView {
-                    current: pictures[i].by_ref(self, &config.url),
-                    previous: pictures[if i == 0 { last } else { i - 1 }].by_ref(self, &config.url),
-                    next: pictures[if i == last { 0 } else { i + 1 }].by_ref(self, &config.url),
-                    parent: self.by_ref(all, self.id, &config.url),
-                    index: all[0].by_ref(all, self.id, &config.url),
-                    site: config,
+                    current: pictures[i].by_ref(self, &site.url),
+                    previous: pictures[if i == 0 { last } else { i - 1 }].by_ref(self, &site.url),
+                    next: pictures[if i == last { 0 } else { i + 1 }].by_ref(self, &site.url),
+                    parent: self.by_ref(all, self.id, &site.url),
+                    index: all[0].by_ref(all, self.id, &site.url),
+                    site,
                     classification,
                 };
                 output.push(pictures[i].pid.as_ref());
                 output.set_extension("html");
-                render(template, &output, &page, rendered)?;
+                render(template, &output, &page, rendered, buffer)?;
                 output.pop();
             }
         } else {
-            render(template, output, &page, rendered)?;
+            render(template, output, &page, rendered, buffer)?;
         }
 
         for path in self.alternative_paths.iter() {
             let mut output = output_dir.join(path);
             output.push("index.html");
-            render(template, output, &page, rendered)?;
+            render(template, output, &page, rendered, buffer)?;
         }
         Ok(())
     }
@@ -590,6 +605,9 @@ impl<'p> Pages<'p> {
                     pages[j].next = j + 1;
                 }
             }
+
+            // Assign a unique identifier
+            pages[i].id = i;
         }
         Pages(pages.into())
     }

@@ -8,10 +8,8 @@
         <ttl>1440</ttl>
         <generator>blades</generator>
         {{#date}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/date}}
-        {{#author}}{{#email}}
-        <managingEditor>{{email}}</managingEditor>
-        <webMaster>{{email}}<webMaster>
-        {{/email}}{{/author}}
+        {{#email}}<managingEditor>{{email}}</managingEditor>
+        <webMaster>{{email}}</webMaster>{{/email}}
     {{/site}}
     {{#pages}}
         <item>
@@ -20,15 +18,13 @@
             <description>{{summary}}</description>
             {{#date}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/date}}
         </item>
-        {{#pictures}}
-        <item>
-            <title>{{alt}}</title>
+        {{#pictures}}<item>
+            <title>{{caption}}</title>
             <link>{{permalink}}</link>
-            <description>{{caption}}</description>
+            <description>{{alt}}</description>
             {{#taken}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/taken}}
             {{^taken}}{{#date}}<pubDate>{{a}}, {{d}} {{b}} {{y}} {{H}}:{{M}}:{{S}} GMT</pubDate>{{/date}}{{/taken}}
-        </item>
-        {{/pictures}}
+        </item>{{/pictures}}
     {{/pages}}
     </channel>
 </rss>
