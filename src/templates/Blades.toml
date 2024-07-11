@@ -3,6 +3,4 @@ description = ""
 keywords = ""
 image = ""
 theme = ""
-
-[author]
-name = "{{author}}"
+author = "{{author}}"
