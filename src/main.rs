@@ -153,7 +153,9 @@ struct MockPage {
 }
 
 /// Possible formats of the source.
+#[derive(Default)]
 enum Format {
+    #[default]
     Toml,
     Markdown,
 }
@@ -203,12 +205,6 @@ impl OutputResult for Output {
                 String::from_utf8_lossy(&self.stderr).into(),
             ))
         }
-    }
-}
-
-impl Default for Format {
-    fn default() -> Self {
-        Format::Toml
     }
 }
 

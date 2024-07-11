@@ -157,7 +157,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
         self.keys
             .0
             .entry(species)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(page)
     }
 

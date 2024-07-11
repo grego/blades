@@ -13,6 +13,7 @@ use crate::taxonomies::{Classification, Taxonomies};
 use crate::types::{Ancestors, Any, DateTime, HashMap};
 
 use beef::lean::Cow;
+use chrono::NaiveDate;
 use ramhorns::{
     encoding::Encoder, traits::ContentSequence, Content, Error, Ramhorns, Section, Template,
 };
@@ -322,7 +323,18 @@ impl<'p> Page<'p> {
         page.pages = source.pages.clone();
         page.subsections = source.subsections.clone();
         page.parent = source.parent;
-        page.date = page.date.or_else(|| source.date.map(|d| d.into()));
+        
+        let slug = path.rsplit(is_separator).next().unwrap_or_default();
+        page.date = page
+            .date
+            .or_else(|| {
+                slug.get(..10).and_then(|p| {
+                    p.parse::<NaiveDate>()
+                        .map(|d| DateTime(d.and_hms_opt(0, 0, 0).unwrap()))
+                        .ok()
+                })
+            })
+            .or_else(|| source.date.map(|d| d.into()));
 
         if is_section || page.slug.is_empty() || page.slug.contains(is_separator) {
             let slug = path.rsplit(is_separator).next().unwrap_or_default();
