@@ -154,11 +154,7 @@ impl<'t, 'r> Taxonomy<'t, 'r> {
 
     #[inline]
     fn add(&mut self, species: &'r str, page: PageLinked<'t, 'r>) {
-        self.keys
-            .0
-            .entry(species)
-            .or_default()
-            .push(page)
+        self.keys.0.entry(species).or_default().push(page)
     }
 
     /// Classify the given pages into taxonomies specified by the config.

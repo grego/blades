@@ -12,15 +12,15 @@ readme = "README.md"
 homepage = "https://getblades.org"
 
 [dependencies]
-ramhorns = "0.14"
+ramhorns = "1"
 arrayvec = { version = "0.7", features = ["serde"] }
 beef = { version = "0.5", features = ["impl_serde"]}
 serde = { version = "^1.0.126", features = ["derive"] }
 chrono = { version = "^0.4.19", features = ["std", "serde"], default_features = false }
 fnv = "1.0"
-hashbrown = { version = "0.12", features = ["inline-more", "serde"], default_features = false }
-pulldown-cmark = { version = "0.9", default_features = false }
-cmark-syntax = "0.4"
+hashbrown = { version = "0.14", features = ["inline-more", "serde"], default_features = false }
+pulldown-cmark = { version = "0.11", default_features = false, features = ["html"] }
+cmark-syntax = "^0.5.1"
 
 # Cargo doesn't support binary-only dependencies yet.
 toml = { version = "0.5.9", optional = true }
@@ -42,3 +42,6 @@ codegen-units = 1
 
 [profile.bench]
 lto = true
+
+[patch.crates-io]
+ramhorns = { git = "https://github.com/grego/ramhorns", branch = "cmark11" }

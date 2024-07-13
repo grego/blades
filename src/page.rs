@@ -323,7 +323,7 @@ impl<'p> Page<'p> {
         page.pages = source.pages.clone();
         page.subsections = source.subsections.clone();
         page.parent = source.parent;
-        
+
         let slug = path.rsplit(is_separator).next().unwrap_or_default();
         page.date = page
             .date
@@ -716,7 +716,17 @@ impl<'p, 'r> PageList<'p, 'r> {
 
 #[inline]
 fn render_content<E: Encoder>(source: &str, encoder: &mut E) -> Result<(), E::Error> {
-    let parser = pulldown_cmark::Parser::new_ext(source, pulldown_cmark::Options::all());
+    use pulldown_cmark::Options;
+
+    let options = Options::ENABLE_TABLES
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_SMART_PUNCTUATION
+        | Options::ENABLE_HEADING_ATTRIBUTES
+        | Options::ENABLE_MATH
+        | Options::ENABLE_GFM;
+    let parser = pulldown_cmark::Parser::new_ext(source, options);
     let processed = cmark_syntax::SyntaxPreprocessor::new(parser);
     encoder.write_html(processed)
 }

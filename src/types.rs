@@ -137,12 +137,12 @@ impl<'a> From<Cow<'a, str>> for Ancestors<'a> {
 
 #[inline]
 fn content_without_paragraphs<E: Encoder>(source: &str, encoder: &mut E) -> Result<(), E::Error> {
-    use pulldown_cmark::{Event, Tag};
+    use pulldown_cmark::{Event, Tag, TagEnd};
     let parser =
         pulldown_cmark::Parser::new_ext(source, pulldown_cmark::Options::all()).filter(|event| {
             !matches!(
                 event,
-                Event::Start(Tag::Paragraph) | Event::End(Tag::Paragraph),
+                Event::Start(Tag::Paragraph) | Event::End(TagEnd::Paragraph),
             )
         });
     let processed = cmark_syntax::SyntaxPreprocessor::new(parser);
