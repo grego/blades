@@ -13,28 +13,10 @@ With this generator
 gallery = true
 
 [[pictures]]
-file = "1"
+file = "/assets/logo.svg"
 alt = "A trash can."
 caption = "a view of reality"
 pid = "tiles"
-
-[[pictures]]
-file = "2"
-alt = "A manor"
-caption = "a view from reality"
-pid = "manor"
-
-[[pictures]]
-file = "3"
-alt = "A brick factory"
-caption = "a view above reality"
-pid = "factory"
-
-[[pictures]]
-file = "4"
-alt = "A couch outside"
-caption = "a view with reality"
-pid = "real"
 
 [taxonomies]
 tags = ["finger", "lisp"]

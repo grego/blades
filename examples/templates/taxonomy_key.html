@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="{{site lang}}" style="max-width: 70ch; padding: 3em 1em; margin: auto; font: 1.25em/1.5 sans-serif">
+<head>
+<title>{{#title}}{{title}} | {{/title}}{{site title}}</title>
+<meta charset="utf-8"/>
+</head>
+<body>
+<h1>{{taxonomy title}}: {{title}}</h1>
+{{#site}}<a href="{{url}}">{{title}}</a>{{/site}}
+<nav>{{#pages}}<p>{{#date}}<div>{{d}}/{{m}}/{{y}}</div>{{/date}}
+<a href="{{permalink}}">{{title}}</a></p>{{/pages}}</nav>
+</body>
+</html>

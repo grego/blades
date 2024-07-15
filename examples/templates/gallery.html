@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="{{site lang}}" style="max-width: 70ch; padding: 3em 1em; margin: auto; font: 1.25em/1.5 sans-serif">
+<head>
+<title>{{#parent title}}{{title}} | {{/title parent}}{{site title}}</title>
+<meta charset="utf-8"/>
+</head>
+<body>
+{{#current}}<figure>
+    <img alt="{{alt}}" src="{{file}}" />
+    <figcaption>{{caption}}</figcaption>
+</figure>{{/current}}
+{{#previous}}<a href="{{permalink}}">&larr;</a>{{/previous}}
+{{#parent}}<a href="{{permalink}}">{{title}}</a>{{/parent}}
+{{#next}}<a href="{{permalink}}">&rarr;</a>{{/next}}
+</body>
+</html>

@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/grego/blades/master/logo.svg?sanitize=true" alt="Blades logo" width="250" align="right">
+<img src="https://raw.githubusercontent.com/grego/blades/master/examples/assets/logo.svg?sanitize=true" alt="Blades logo" width="250" align="right">
 
 # Blades
 
@@ -30,8 +30,10 @@ to let you focus on your content.
 * Themes
 * Image gallery generation
 * [CommonMark](https://commonmark.org) markdown with tables and footnotes for content
-* Automatic syntax highlighting using [cmark-syntax](https://github.com/grego/cmark-syntax)
-  (with a possibility of turning LaTeX formulas into [MathML](https://developer.mozilla.org/docs/Web/MathML))
+* Rendering of LaTeX formulas into [MathML](https://developer.mozilla.org/docs/Web/MathML),
+  (supported by [all major browsers](https://caniuse.com/mathml)), with content between
+  `$` rendered in inline mode and content between `$$` rendered in display mode.
+* Syntax highlighting using [cmark-syntax](https://github.com/grego/cmark-syntax)
 * Customizable taxonomies (like categories or tags)
 * Pagination
 * Breadcrumbs
@@ -93,7 +95,7 @@ There are 4 types of plugins that can be used with Blades.
 * **transform** - they receive a JSON-serialised list of [pages](https://www.getblades.org/pages.html) on the standard output and output
   another such list on the standard output, can transform anything on the pages
 * **content** - they receive a markdown content of one page on standard input and output markdown on the standard output; they are enabled
-  on per-page basis and can be used e.g. to render LaTeX formulas or highlight syntax
+  on per-page basis
 
 Any code in any language can be used, as only using the standard input and output is assumed. For Rust, Blades also provides a
 [library](https://docs.rs/blades) for automatic serialisation and deserialisation pages.
@@ -101,11 +103,7 @@ Any code in any language can be used, as only using the standard input and outpu
 ### Example
 Example plugin configuration can be found in [examples](examples/Blades.toml), as well as an
 example toy [transform plugin](examples/transform_plugin.rs).
-To try it, first downolad the [Casper](https://blades-casper.netlify.app/) theme as a submodule
-```bash
-git submodule update --init
-```
-Then build the plugin:
+To try it, first build the plugin:
 ```bash
 cargo build --release transform_plugin
 ```
@@ -125,6 +123,9 @@ into the `themes` directory. A list of available themes can be found [here](http
 
 To overwrite the theme, simply use the files in the `templates`, resp. `assets` subdirectories of the
 page root directory.
+
+When initializing a Blades project with `blades init`, it provides an option to start with
+a minimal working template to allow you to quickly start working on your content.
 
 ## Assets
 All the files from the `assets` directory (and from the theme) are moved into the directory

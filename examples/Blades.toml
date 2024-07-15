@@ -1,7 +1,4 @@
 title = "My site!"
-description = "It does nothing"
-image = "img/main.jpg"
-theme = "casper"
 
 [plugins]
 input = ["cat input.json"]

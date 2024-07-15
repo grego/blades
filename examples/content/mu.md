@@ -1,10 +1,16 @@
++++
 title = "Mu"
 date = 2020-09-18
 image = "img/mu.jpg"
 summary = """A monk asked Joshu, "Has the dog the Buddha nature?" """
-content = """
-A monk asked Joshu, "Has the dog the Buddha nature?"[^cool]  
+
+[taxonomies]
+tags = ["pets"]
++++
+A monk asked Joshu, "Has the dog the Buddha nature?"[^cool]
 Joshu replied, "Mu"
+
+$$\sum_{n=0}^\infty \frac{1}{n^2}$$
 
 ### Mumon's Comment:
 > For the pursuit of Zen, you must pass through the barriers (gates) set up by the Zen masters. To attain his mysterious awareness one must completely uproot all the normal workings of one's mind. If you do not pass through the barriers, nor uproot the normal workings of your mind, whatever you do and whatever you think is a tangle of ghost. Now what are the barriers? This one word "Mu" is the sole barrier. This is why it is called the Gateless Gate of Zen. The one who passes through this barrier shall meet with Joshu face to face and also see with the same eyes, hear with the same ears and walk together in the long train of the patriarchs. Wouldn't that be pleasant?  
@@ -20,7 +26,3 @@ pub(crate) fn render_content<E: Encoder>(source: &str, encoder: &mut E) -> Resul
 ```
 
 [^cool]: This is a really cool story.
-"""
-
-[taxonomies]
-tags = ["pets"]

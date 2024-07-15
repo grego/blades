@@ -1,6 +1,6 @@
 [package]
 name = "blades"
-version = "0.5.0"
+version = "1.0.0"
 authors = ["Maroš Grego <maros@grego.site>"]
 edition = "2021"
 description = "Blazing fast dead simple static site generator"

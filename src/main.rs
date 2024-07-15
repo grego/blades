@@ -307,7 +307,33 @@ fn init() -> Result<(), Error> {
     let config = MockConfig { title, author };
     Template::new(include_str!("templates/Blades.toml"))?.render_to_file(CONFIG_FILE, &config)?;
     fs::create_dir_all("content")?;
-    fs::create_dir_all("themes").map_err(Into::into)
+    let thm = next_line(&mut lines, "Start with a minimal working template? (Select no to use a theme; then put the theme inside the 'themes' directory.) [Y/n]")?;
+    if &thm == "n" || &thm == "N" || &thm == "no" || &thm == "No" {
+        fs::create_dir_all("themes").map_err(Into::into)
+    } else {
+        fs::create_dir_all("templates")?;
+        fs::write(
+            "templates/page.html",
+            include_str!("../examples/templates/page.html"),
+        )?;
+        fs::write(
+            "templates/section.html",
+            include_str!("../examples/templates/section.html"),
+        )?;
+        fs::write(
+            "templates/taxonomy.html",
+            include_str!("../examples/templates/taxonomy.html"),
+        )?;
+        fs::write(
+            "templates/taxonomy_key.html",
+            include_str!("../examples/templates/taxonomy_key.html"),
+        )?;
+        fs::write(
+            "templates/gallery.html",
+            include_str!("../examples/templates/gallery.html"),
+        )?;
+        Ok(())
+    }
 }
 
 /// Create a new page and edit it if the EDITOR variable is set
@@ -456,6 +482,24 @@ fn cleanup(mut rendered: Vec<PathBuf>, filelist: &str) -> Result<(), io::Error> 
     Ok(())
 }
 
+/// A helper trait to print the name of the file that was not found.
+trait PrintIfNotFound {
+    /// Print the name of the file that was not found.
+    fn print_if_not_found(self, name: &str) -> Self;
+}
+
+impl<T> PrintIfNotFound for io::Result<T> {
+    /// Print the name of the file that was not found.
+    fn print_if_not_found(self, name: &str) -> Self {
+        if let Err(ref e) = self {
+            if e.kind() == ErrorKind::NotFound {
+                eprintln!("Error: {} not found", name)
+            }
+        }
+        self
+    }
+}
+
 /// The actual logic of task parallelisation.
 fn build(config: &Config) -> Result<(), Error> {
     const MIN_PER_THREAD: usize = 5;
@@ -492,7 +536,12 @@ fn build(config: &Config) -> Result<(), Error> {
         .plugins
         .input
         .iter()
-        .map(|cmd| cmd.make_command().output()?.output_result(&cmd.path))
+        .map(|cmd| {
+            cmd.make_command()
+                .output()
+                .print_if_not_found(&cmd.path)?
+                .output_result(&cmd.path)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     let input_pages = inputs
         .iter()
@@ -509,7 +558,8 @@ fn build(config: &Config) -> Result<(), Error> {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .spawn()?;
+            .spawn()
+            .print_if_not_found(&cmd.path)?;
         let mut stdin = child.stdin.take().expect("Failed to open child stdin");
         if let Some(ref source) = transformed {
             stdin.write_all(source)?;
@@ -535,7 +585,8 @@ fn build(config: &Config) -> Result<(), Error> {
                     .stdin(Stdio::piped())
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
-                    .spawn()?;
+                    .spawn()
+                    .print_if_not_found(&config.plugins.content[cmd].path)?;
                 let mut stdin = child.stdin.take().expect("Failed to open child stdin");
                 if let Some(ref out) = output {
                     stdin.write_all(out.as_ref())?;
@@ -618,7 +669,8 @@ fn build(config: &Config) -> Result<(), Error> {
                 .make_command()
                 .stdin(Stdio::piped())
                 .stderr(Stdio::piped())
-                .spawn()?;
+                .spawn()
+                .print_if_not_found(&cmd.path)?;
             let mut stdin = child.stdin.take().expect("Failed to open child stdin");
             stdin.write_all(pagedata.as_ref())?;
             drop(stdin);
