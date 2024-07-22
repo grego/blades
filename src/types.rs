@@ -108,7 +108,11 @@ impl<'a> Content for Ancestors<'a> {
                 .render(encoder)?;
             previous = i + sep.len();
         }
-        if !s.contains(is_separator) {
+        if previous != 0 {
+            section
+                .with(&Segment(&s[previous..], &s))
+                .render(encoder)?;
+        } else {
             section.with(&Segment(s, s)).render(encoder)?;
         }
         Ok(())
